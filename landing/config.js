@@ -1,0 +1,19 @@
+// Preencha com os valores reais antes de publicar.
+// SUPABASE_ANON_KEY é uma chave pública (somente leitura, protegida por RLS) — pode
+// ficar exposta no front-end. NUNCA coloque a service_role key aqui.
+const CONFIG = {
+  // MOCK_MODE = true: a página inteira funciona com dados falsos, sem precisar de
+  // Supabase nem Efí configurados ainda. Serve pra demonstrar o fluxo pro cliente e
+  // testar a interface enquanto a conta Efí não é aprovada. Trocar pra false só quando
+  // SUPABASE_URL/ANON_KEY e MAKE_WEBHOOK_RESERVAR abaixo forem os valores reais.
+  MOCK_MODE: true,
+  SUPABASE_URL: 'https://SEU-PROJETO.supabase.co',
+  SUPABASE_ANON_KEY: 'SUA_ANON_KEY_AQUI',
+  MAKE_WEBHOOK_RESERVAR: 'https://hook.us1.make.com/SEU_WEBHOOK_DE_RESERVA',
+  TOTAL_NUMEROS: 1000,
+  POLL_INTERVALO_MS: 4000,
+  // Alternativa manual caso o webhook automático falhe ou demore — chave PIX real do
+  // cliente (Nubank), a mesma cadastrada na conta Efí como chave de recebimento.
+  PIX_CHAVE_FALLBACK: '55997331063',
+  WHATSAPP_FALLBACK: '5555997331063',
+};

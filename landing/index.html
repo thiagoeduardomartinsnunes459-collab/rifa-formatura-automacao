@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Rifa Formatura em Direito</title>
+  <meta name="description" content="Rifa solidária da formatura em Direito — escolha seu número, pague pelo PIX e concorra a prêmios." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9A%96%EF%B8%8F%3C/text%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="header">
+    <span class="header-badge">🎓 Formatura em Direito</span>
+    <h1>Rifa Solidária</h1>
+    <p class="header-sub">Escolha seu número, pague pelo PIX e concorra aos prêmios abaixo!</p>
+    <div class="sorteio-info">
+      <span>📅 10 de fevereiro</span>
+      <span>🕗 20h</span>
+      <span>📱 Ao vivo no Instagram</span>
+    </div>
+  </header>
+
+  <section class="premios">
+    <div class="premio-card">
+      <span class="premio-medalha">🥇</span>
+      <span class="premio-titulo">Smart TV 32"</span>
+      <span class="premio-desc">Top demais!</span>
+    </div>
+    <div class="premio-card">
+      <span class="premio-medalha">🥈</span>
+      <span class="premio-titulo">Kit de Beleza</span>
+      <span class="premio-desc">Passei longe do ruim!</span>
+    </div>
+    <div class="premio-card">
+      <span class="premio-medalha">🥉</span>
+      <span class="premio-titulo">Copo Térmico</span>
+      <span class="premio-desc">Sempre útil!</span>
+    </div>
+  </section>
+
+  <section class="legenda">
+    <span class="chip disponivel">Disponível</span>
+    <span class="chip reservado">Reservado (em pagamento)</span>
+    <span class="chip pago">Vendido</span>
+  </section>
+
+  <main>
+    <div class="grid-wrapper">
+      <div id="grid" class="grid" aria-label="Grade de números da rifa"></div>
+    </div>
+  </main>
+
+  <dialog id="modal-compra">
+    <form id="form-compra" method="dialog">
+      <h2>Número <span id="modal-numero"></span></h2>
+      <label>
+        Nome completo
+        <input type="text" id="input-nome" required maxlength="120" autocomplete="name" />
+      </label>
+      <label>
+        WhatsApp (com DDD)
+        <input type="tel" id="input-whatsapp" required maxlength="20" placeholder="11999998888" autocomplete="tel" />
+      </label>
+      <label>
+        CPF
+        <input type="text" id="input-cpf" required maxlength="14" placeholder="000.000.000-00" inputmode="numeric" autocomplete="off" />
+      </label>
+      <p class="aviso">A cobrança PIX exige seu CPF. Você terá 15 minutos para pagar antes do número voltar a ficar disponível.</p>
+      <div class="modal-acoes">
+        <button type="button" id="btn-cancelar">Cancelar</button>
+        <button type="submit" id="btn-gerar-pix">Gerar cobrança PIX</button>
+      </div>
+      <p id="modal-erro" class="erro" role="alert"></p>
+    </form>
+  </dialog>
+
+  <dialog id="modal-pix">
+    <div class="pix-conteudo">
+      <h2>Pague para garantir seu número</h2>
+      <p class="aviso">Escaneie o QR Code com o app do seu banco ou copie o código PIX abaixo.</p>
+      <img id="pix-qrcode" alt="QR Code do PIX" />
+      <label>
+        Código para pagar
+        <textarea id="pix-copiacola" readonly rows="3"></textarea>
+      </label>
+      <button type="button" id="btn-copiar-pix">Copiar código</button>
+      <p id="pix-status" class="status-espera">Aguardando pagamento...</p>
+      <button type="button" id="btn-fechar-pix">Fechar</button>
+
+      <p class="fallback-aviso">
+        Não conseguiu pagar? Envie o PIX manualmente pra chave
+        <strong id="fallback-chave-pix"></strong> e mande o comprovante no WhatsApp
+        <a id="fallback-whatsapp" target="_blank" rel="noopener"></a> com seu nome e o número escolhido.
+      </p>
+    </div>
+  </dialog>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
