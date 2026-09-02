@@ -30,10 +30,10 @@ const mockStore = {
 };
 
 function inicializarMockGrid() {
-  for (let numero = 0; numero < CONFIG.TOTAL_NUMEROS; numero += 1) {
+  for (let numero = 1; numero <= CONFIG.TOTAL_NUMEROS; numero += 1) {
     mockStore.numeros.set(numero, 'disponivel');
   }
-  [7, 13, 42, 100, 250, 777].forEach((numero) => mockStore.numeros.set(numero, 'pago'));
+  [7, 13, 42, 100, 250, 777, 1000].forEach((numero) => mockStore.numeros.set(numero, 'pago'));
 }
 
 function gerarQrcodeMockBase64() {
@@ -55,7 +55,7 @@ function gerarQrcodeMockBase64() {
 }
 
 function formatarNumero(numero) {
-  return String(numero).padStart(3, '0');
+  return String(numero).padStart(4, '0');
 }
 
 function apenasDigitos(texto) {

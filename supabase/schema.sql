@@ -10,7 +10,7 @@ create type reserva_status as enum ('pendente', 'paga', 'expirada', 'cancelada')
 
 -- Estoque dos 1000 números. Fonte da verdade única.
 create table numeros (
-  numero smallint primary key check (numero >= 0 and numero <= 999),
+  numero smallint primary key check (numero >= 1 and numero <= 1000),
   status numero_status not null default 'disponivel',
   reserva_id uuid,
   reservado_ate timestamptz,
@@ -47,9 +47,9 @@ create index on reservas (numero);
 create index on reservas (status);
 create index on numeros (status);
 
--- Popula os 1000 números (000 a 999), todos disponíveis.
+-- Popula os 1000 números (1 a 1000), todos disponíveis.
 insert into numeros (numero)
-select generate_series(0, 999);
+select generate_series(1, 1000);
 
 -- Reserva atômica: só avança se o número ainda estiver livre OU se a reserva anterior
 -- já tiver expirado (reservado_ate < now()). Essa condição no WHERE é o que torna o
