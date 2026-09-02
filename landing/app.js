@@ -241,6 +241,7 @@ function iniciarPollDeStatus(reservaId) {
       atualizarCelula(reserva.numero, 'pago');
       pixStatusEl.textContent = 'Pagamento confirmado! Seu número está garantido. (simulado)';
       pixStatusEl.className = 'status-sucesso';
+      dispararConfete();
     }, 5000);
     return;
   }
@@ -259,6 +260,7 @@ function iniciarPollDeStatus(reservaId) {
       if (status === 'paga') {
         pixStatusEl.textContent = 'Pagamento confirmado! Seu número está garantido.';
         pixStatusEl.className = 'status-sucesso';
+        dispararConfete();
         pararPoll();
         await carregarGrid();
       } else if (status === 'expirada' || status === 'cancelada') {
@@ -271,6 +273,66 @@ function iniciarPollDeStatus(reservaId) {
       console.error('Falha ao consultar status da reserva', { error, reservaId });
     }
   }, CONFIG.POLL_INTERVALO_MS);
+}
+
+function dispararConfete() {
+  // Anexa dentro do <dialog> aberto (não em document.body): dialogs nativos
+  // renderizam numa "top layer" acima de qualquer elemento normal — um canvas
+  // fixed em body ficaria escondido atrás do modal por maior que fosse o z-index.
+  const dialogAberto = document.querySelector('dialog[open]') ?? document.body;
+  const canvas = document.createElement('canvas');
+  canvas.id = 'confete-canvas';
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  dialogAberto.appendChild(canvas);
+  const ctx = canvas.getContext('2d');
+
+  const cores = ['#f472b6', '#db2777', '#e5c158', '#d4af37', '#ffffff'];
+  const particulas = Array.from({ length: 140 }, () => ({
+    x: canvas.width / 2,
+    y: canvas.height / 3,
+    vx: (Math.random() - 0.5) * 14,
+    vy: Math.random() * -14 - 4,
+    tamanho: Math.random() * 6 + 4,
+    cor: cores[Math.floor(Math.random() * cores.length)],
+    rotacao: Math.random() * Math.PI * 2,
+    vRotacao: (Math.random() - 0.5) * 0.3,
+    gravidade: 0.35,
+    vida: 0,
+    vidaMax: 90 + Math.random() * 30,
+  }));
+
+  function frame() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    let ativas = false;
+
+    for (const p of particulas) {
+      if (p.vida >= p.vidaMax) continue;
+      ativas = true;
+      p.vida += 1;
+      p.vx *= 0.99;
+      p.vy += p.gravidade;
+      p.x += p.vx;
+      p.y += p.vy;
+      p.rotacao += p.vRotacao;
+
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, 1 - p.vida / p.vidaMax);
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rotacao);
+      ctx.fillStyle = p.cor;
+      ctx.fillRect(-p.tamanho / 2, -p.tamanho / 4, p.tamanho, p.tamanho / 2);
+      ctx.restore();
+    }
+
+    if (ativas) {
+      requestAnimationFrame(frame);
+    } else {
+      canvas.remove();
+    }
+  }
+
+  requestAnimationFrame(frame);
 }
 
 function pararPoll() {

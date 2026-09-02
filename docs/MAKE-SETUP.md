@@ -12,22 +12,57 @@ registrada no Nubank) — o valor cai direto na conta, sem intermediário reter.
 resolve de vez a dúvida de compatibilidade de QR que tínhamos com o PicPay: cobrança Efí
 gera um PIX BR Code padrão, aceito por qualquer banco.
 
-> ⚠️ **Maior risco técnico desta escolha: autenticação por certificado mTLS.** Diferente
-> de PicPay/Mercado Pago (que usam só um token Bearer), a API da Efí exige um certificado
-> `.p12` baixado do painel dela, apresentado em toda chamada via mTLS — não é só um
-> header. **Confiança MEDIA sobre o Make conseguir fazer isso nativamente:** o módulo HTTP
-> do Make tem suporte a "Client Certificate" em Connections, mas (1) pode exigir plano
-> pago específico, (2) o certificado da Efí vem em `.p12` e pode precisar ser convertido
-> pra `.pem` (`openssl pkcs12 -in certificado.p12 -out certificado.pem -nodes`). **Teste
-> isso primeiro, antes de montar o resto** — se o Make não aceitar o certificado, o plano B
-> é um proxy fininho (uma function na Vercel/Cloudflare Workers) que segura o mTLS e expõe
-> um endpoint simples com API key pro Make chamar. Não construí esse proxy ainda; só
-> construa se o teste do certificado no Make falhar.
+> ✅ **Certificado mTLS testado e confirmado (02/09).** Rodamos `testar-efi.ps1` (na raiz
+> do projeto) com `curl --cert-type P12` direto contra
+> `https://pix-h.api.efipay.com.br/oauth/token` (homologação) e recebemos `200` com
+> `access_token` real, escopos `cob.write cob.read webhook.write`. Client ID, Client
+> Secret e o `.p12` estão todos corretos. **Detalhe importante que corrigimos:** o corpo
+> precisa ser `application/x-www-form-urlencoded` (`grant_type=client_credentials`), **não**
+> JSON — a doc anterior assumia JSON errado.
+>
+> **O que ainda não foi testado:** se o módulo HTTP do **Make** (não o `curl`) aceita
+> certificado `.p12` do mesmo jeito via a opção "Client Certificate" em Connections — isso
+> depende do plano da conta e ainda está bloqueado pelo bug do webhook (ver
+> `proximo-passo-teste-make.md`). Quando o Make voltar a funcionar, usar
+> `x-www-form-urlencoded` no módulo de autenticação, replicando exatamente o `testar-efi.ps1`.
 
 Pré-requisito: rode `supabase/schema.sql` no projeto Supabase antes de configurar
 qualquer scenario aqui — os módulos abaixo dependem das funções `reservar_numero` e
 `confirmar_pagamento` já existirem (o schema já inclui o campo `cpf`, exigido pela Efí em
 `devedor.cpf`).
+
+## Status atual (já construído no Make)
+
+O scenario **"Rifa - Reservar Numero + Gerar PIX"** já existe no Make com:
+
+- ✅ Módulo **2** — Webhook trigger (`Custom webhook`), URL:
+  `https://hook.us2.make.com/vf1kke3goyndyhmbu12vvwcgn6rpas00` (já está em `config.js`)
+- ✅ Módulo **3** — HTTP call pra `reservar_numero`, com os 3 headers criados
+  (`Content-Type` preenchido, `apikey` e `Authorization` **vazios — preencher com a
+  `SUPABASE_SERVICE_ROLE_KEY` do `.env`**) e o corpo já mapeado corretamente
+- ✅ Router adicionado logo depois, com 2 rotas vazias, esperando os filtros
+
+**Atenção aos números dos módulos:** o Make não numera os módulos como 1, 2, 3 na ordem
+que você imagina — o Webhook virou módulo **2** e o HTTP módulo **3** (não 1 e 2), porque
+o Make incrementa o ID a cada tentativa, mesmo quando você apaga e refaz um módulo. Sempre
+que for referenciar um campo de outro módulo (`{{N.campo}}`), confirme o número real
+olhando o rótulo abaixo do ícone do módulo no canvas (ative "Show module ID" com botão
+direito no canvas vazio, se não estiver visível) — não assuma pela ordem visual.
+
+**Por que os filtros das 2 rotas do Router ainda não foram configurados:** o seletor de
+campos do Make só sugere campos de módulos cujo formato ele já "viu" — e o Webhook nunca
+recebeu uma execução de verdade ainda (só um teste manual que não ficou registrado como
+amostra). Sem isso, não dá pra confirmar com segurança a sintaxe exata do caminho até
+`sucesso` dentro da resposta da função `reservar_numero` (ela retorna uma tabela/array,
+então pode ser `{{3.Data[1].sucesso}}` ou uma variação disso — não testei contra dado
+real). **Próximo passo recomendado:** clicar em **"Run once"** no scenario, disparar um
+teste real pela landing page (com `MOCK_MODE: false`), e depois configurar os filtros —
+nesse ponto o seletor de campos do Make vai sugerir `sucesso` diretamente, sem adivinhação.
+
+- Rota de cima (route 1): filtro `{{3.Data[1].sucesso}} = false` (ou o caminho certo que
+  aparecer depois do teste) → módulo de resposta de erro do Webhook
+- Rota de baixo (route 2): filtro `= true` → segue pros módulos da Efí (ainda não
+  construídos, aguardando as credenciais da chamada com a cliente)
 
 **Pré-requisito adicional:** confirmar se a conta Efí do cliente é Pessoa Física (CPF) ou
 Pessoa Jurídica — a Efí atende os dois, mas o cadastro e a chave PIX vinculada mudam

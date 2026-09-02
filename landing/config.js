@@ -9,7 +9,7 @@ const CONFIG = {
   MOCK_MODE: false,
   SUPABASE_URL: 'https://zlmghzvgbwuhopdpgkta.supabase.co',
   SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpsbWdoenZnYnd1aG9wZHBna3RhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgzMTIzNjQsImV4cCI6MjEwMzg4ODM2NH0.7ymbr3hNJz4xsa3DpDDDIOJONZdzWsS2mvhrnL_jSxI',
-  MAKE_WEBHOOK_RESERVAR: 'https://hook.us1.make.com/SEU_WEBHOOK_DE_RESERVA',
+  MAKE_WEBHOOK_RESERVAR: 'https://hook.us2.make.com/vf1kke3goyndyhmbu12vvwcgn6rpas00',
   TOTAL_NUMEROS: 1000,
   POLL_INTERVALO_MS: 4000,
   // Alternativa manual caso o webhook automático falhe ou demore — chave PIX real do
