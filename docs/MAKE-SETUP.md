@@ -5,12 +5,16 @@ precisam ser conectados manualmente na interface. Este guia é o roteiro exato p
 os dois scenarios que fecham o fluxo da Versão A (grade de números + Postgres/Supabase),
 usando **Efí (ex-Gerencianet)** como gateway.
 
-**Por que Efí e não PicPay/Mercado Pago:** o cliente quer o dinheiro caindo direto na
-própria conta Nubank, não numa carteira intermediária que precisa de saque manual depois.
-A Efí permite cobrança PIX vinculada à chave PIX real do lojista (a mesma chave já
-registrada no Nubank) — o valor cai direto na conta, sem intermediário reter. Isso também
-resolve de vez a dúvida de compatibilidade de QR que tínhamos com o PicPay: cobrança Efí
-gera um PIX BR Code padrão, aceito por qualquer banco.
+**Por que Efí e não PicPay/Mercado Pago:** o cliente queria evitar uma carteira
+intermediária que retém o valor até um saque manual. A cobrança PIX da Efí exige uma
+chave PIX cadastrada **na própria conta Efí** (uma chave só pode estar vinculada a um
+banco/PSP por vez, então não dá pra usar diretamente a chave que já está no Nubank sem
+portá-la). A cliente resolveu isso cadastrando uma **chave aleatória nova, direto no app
+do Efí** — caminho mais simples que portabilidade. O valor cai na conta digital do Efí
+(visível no app dela), e ela transfere por PIX pro Nubank quando quiser; ainda é conta
+própria, sem intermediário de terceiros reter o saldo. Isso também resolve de vez a
+dúvida de compatibilidade de QR que tínhamos com o PicPay: cobrança Efí gera um PIX BR
+Code padrão, aceito por qualquer banco.
 
 > ✅ **Certificado mTLS testado e confirmado (02/09).** Rodamos `testar-efi.ps1` (na raiz
 > do projeto) com `curl --cert-type P12` direto contra
@@ -164,13 +168,20 @@ sistema se atrasar ou falhar.
 | `SUPABASE_ANON_KEY` | Painel do Supabase → Project Settings → API (chave pública) | `config.js` da landing page |
 | `EFI_CLIENT_ID` / `EFI_CLIENT_SECRET` | Painel Efí → API Pix → Aplicações | Autenticação (oauth/token) |
 | Certificado `.p12` | Painel Efí → API Pix → Meus Certificados | mTLS em toda chamada à API Efí |
-| `EFI_CHAVE_PIX` | A própria chave PIX do cliente, já registrada no Nubank e cadastrada como chave de recebimento na conta Efí | Scenarios 1 e 2 |
+| `EFI_CHAVE_PIX` | Chave aleatória criada direto no app do Efí pela cliente (não é a chave do Nubank — chave PIX só pode estar vinculada a um banco/PSP por vez) | Scenarios 1 e 2 |
+
+## Credenciais necessárias — nota sobre `EFI_CHAVE_PIX`
+
+Diferente de `EFI_CLIENT_ID`/`EFI_CLIENT_SECRET`/`.p12` (segredos de API, nunca no chat),
+a chave PIX em si não é secreta — é o mesmo tipo de dado que já aparece publicamente num
+QR Code. Ainda assim, siga o padrão do projeto: a cliente cola o valor direto em `.env`
+(`EFI_CHAVE_PIX=...`), sem passar pelo chat.
 
 ## Checklist antes de ir ao ar (gate do @qa)
 
 - [ ] **Testar o certificado mTLS no módulo HTTP do Make primeiro.** Se não funcionar, construir o proxy de fallback antes de continuar — é bloqueante pra tudo o resto.
 - [ ] Testar o fluxo inteiro no ambiente de homologação da Efí (`pix-h.api.efipay.com.br`) antes de usar chaves de produção
-- [ ] Confirmar que a chave PIX cadastrada na Efí é exatamente a mesma do Nubank do cliente (testar com um pagamento de R$0,01 real)
+- [ ] Confirmar que a chave PIX aleatória cadastrada na Efí está ativa e corresponde à conta certa (testar com um pagamento de R$0,01 real em produção antes do lançamento)
 - [ ] Testar dois cliques simultâneos no mesmo número (duas abas) → só um deve conseguir reservar
 - [ ] Testar notificação duplicada da Efí (reenviar manualmente o mesmo webhook) → não deve duplicar confirmação nem WhatsApp
 - [ ] Testar pagamento feito 1 minuto depois da cobrança expirada → deve cair na fila de exceção, não sumir
