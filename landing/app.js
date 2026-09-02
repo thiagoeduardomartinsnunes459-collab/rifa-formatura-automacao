@@ -247,20 +247,21 @@ function iniciarPollDeStatus(reservaId) {
 
   pollTimer = setInterval(async () => {
     try {
-      const { data, error } = await supabaseClient
-        .from('reservas')
-        .select('status')
-        .eq('id', reservaId)
-        .single();
+      // RPC, não select direto: `reservas` tem RLS sem policy de leitura pública (só
+      // exporia nome/whatsapp/cpf pra chave anon). status_reserva() é SECURITY DEFINER
+      // e devolve só o status (ver supabase/schema.sql).
+      const { data: status, error } = await supabaseClient.rpc('status_reserva', {
+        p_reserva_id: reservaId,
+      });
 
       if (error) throw error;
 
-      if (data.status === 'paga') {
+      if (status === 'paga') {
         pixStatusEl.textContent = 'Pagamento confirmado! Seu número está garantido.';
         pixStatusEl.className = 'status-sucesso';
         pararPoll();
         await carregarGrid();
-      } else if (data.status === 'expirada' || data.status === 'cancelada') {
+      } else if (status === 'expirada' || status === 'cancelada') {
         pixStatusEl.textContent = 'O tempo para pagamento expirou. Escolha o número novamente.';
         pixStatusEl.className = 'status-erro';
         pararPoll();

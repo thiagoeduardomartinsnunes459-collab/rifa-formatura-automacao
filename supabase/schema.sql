@@ -155,3 +155,19 @@ create policy "leitura publica do estoque" on numeros
   for select using (true);
 
 -- reservas e pagamentos não têm policy de leitura pública: só o Make (service_role) acessa.
+
+-- A landing page precisa saber se UMA reserva específica já foi paga (polling da tela de
+-- PIX, ver app.js). Uma policy de SELECT em `reservas` exporia nome/whatsapp/cpf de quem
+-- souber o UUID; em vez disso, esta função SECURITY DEFINER contorna a RLS de forma
+-- controlada e devolve só o status.
+create or replace function status_reserva(p_reserva_id uuid)
+returns text
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select status::text from reservas where id = p_reserva_id;
+$$;
+
+grant execute on function status_reserva(uuid) to anon;
