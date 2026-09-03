@@ -14,19 +14,19 @@ Write-Host "Testando autenticacao na Efi (homologacao)..."
 Write-Host "Certificado: $certPath"
 
 Write-Host "--- Tentativa 1: JSON ---"
-curl.exe -s -w "`nHTTP_STATUS:%{http_code}`n" `
+curl.exe -sS -w "`nHTTP_STATUS:%{http_code}`n" `
   -X POST "https://pix-h.api.efipay.com.br/oauth/token" `
   --cert-type P12 `
   --cert "${certPath}:" `
   -u "$($env:EFI_CLIENT_ID):$($env:EFI_CLIENT_SECRET)" `
   -H "Content-Type: application/json" `
-  -d '{"grant_type": "client_credentials"}'
+  -d '{"grant_type": "client_credentials"}' 2>&1
 
 Write-Host "`n--- Tentativa 2: form-urlencoded ---"
-curl.exe -s -w "`nHTTP_STATUS:%{http_code}`n" `
+curl.exe -sS -w "`nHTTP_STATUS:%{http_code}`n" `
   -X POST "https://pix-h.api.efipay.com.br/oauth/token" `
   --cert-type P12 `
   --cert "${certPath}:" `
   -u "$($env:EFI_CLIENT_ID):$($env:EFI_CLIENT_SECRET)" `
   -H "Content-Type: application/x-www-form-urlencoded" `
-  -d "grant_type=client_credentials"
+  -d "grant_type=client_credentials" 2>&1

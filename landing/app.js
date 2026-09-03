@@ -36,24 +36,6 @@ function inicializarMockGrid() {
   [7, 13, 42, 100, 250, 777, 1000].forEach((numero) => mockStore.numeros.set(numero, 'pago'));
 }
 
-function gerarQrcodeMockBase64() {
-  const canvas = document.createElement('canvas');
-  canvas.width = 220;
-  canvas.height = 220;
-  const ctx = canvas.getContext('2d');
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, 220, 220);
-  ctx.strokeStyle = '#0f0f14';
-  ctx.lineWidth = 4;
-  ctx.strokeRect(10, 10, 200, 200);
-  ctx.fillStyle = '#0f0f14';
-  ctx.font = 'bold 16px system-ui';
-  ctx.textAlign = 'center';
-  ctx.fillText('QR CODE', 110, 100);
-  ctx.fillText('(simulado)', 110, 125);
-  return canvas.toDataURL('image/png').split(',')[1];
-}
-
 function formatarNumero(numero) {
   return String(numero).padStart(4, '0');
 }
@@ -208,7 +190,6 @@ async function reservarNumeroMock(numero, nome, whatsapp, cpf) {
   return {
     sucesso: true,
     reserva_id: reservaId,
-    qrcode_base64: gerarQrcodeMockBase64(),
     copia_cola: '00020126580014BR.GOV.BCB.PIX-MOCK-NAO-USE-PARA-PAGAMENTO-REAL',
   };
 }
@@ -243,7 +224,7 @@ formCompra.addEventListener('submit', async (event) => {
     }
 
     modalCompra.close();
-    abrirModalPix(resultado);
+    await abrirModalPix(resultado);
   } catch (error) {
     console.error('Falha ao reservar número', { error, numero: numeroSelecionado });
     modalErroEl.textContent = 'Erro de conexão. Verifique sua internet e tente novamente.';
@@ -254,8 +235,16 @@ formCompra.addEventListener('submit', async (event) => {
 
 btnCancelar.addEventListener('click', () => modalCompra.close());
 
-function abrirModalPix(resultado) {
-  pixQrcodeEl.src = `data:image/png;base64,${resultado.qrcode_base64}`;
+// Efí não devolve mais a imagem do QR Code pronta (endpoint /v2/loc/:id/qrcode exige
+// escopo que o app da cliente na Efí não tem habilitado) — mas a cobrança já retorna o
+// "copia e cola" completo, então geramos a imagem do QR Code no próprio navegador a
+// partir dele (biblioteca `qrcode` carregada no index.html).
+async function abrirModalPix(resultado) {
+  try {
+    pixQrcodeEl.src = await QRCode.toDataURL(resultado.copia_cola, { width: 220, margin: 1 });
+  } catch (error) {
+    console.error('Falha ao gerar QR Code localmente', { error });
+  }
   pixCopiaColaEl.value = resultado.copia_cola;
   fallbackChavePixEl.textContent = CONFIG.PIX_CHAVE_FALLBACK;
   fallbackWhatsappEl.textContent = CONFIG.WHATSAPP_FALLBACK;
