@@ -16,61 +16,53 @@ própria, sem intermediário de terceiros reter o saldo. Isso também resolve de
 dúvida de compatibilidade de QR que tínhamos com o PicPay: cobrança Efí gera um PIX BR
 Code padrão, aceito por qualquer banco.
 
-> ✅ **Certificado mTLS testado e confirmado (02/09).** Rodamos `testar-efi.ps1` (na raiz
-> do projeto) com `curl --cert-type P12` direto contra
-> `https://pix-h.api.efipay.com.br/oauth/token` (homologação) e recebemos `200` com
-> `access_token` real, escopos `cob.write cob.read webhook.write`. Client ID, Client
-> Secret e o `.p12` estão todos corretos. **Detalhe importante que corrigimos:** o corpo
-> precisa ser `application/x-www-form-urlencoded` (`grant_type=client_credentials`), **não**
-> JSON — a doc anterior assumia JSON errado.
+> ✅ **Fluxo completo testado em homologação, ponta a ponta (03/09).** Os dois scenarios
+> abaixo estão montados, ativos, e validados com uma cobrança PIX real de sandbox (reserva
+> → autenticação mTLS → criação da cobrança → webhook de confirmação → `numeros.status =
+> 'pago'`). Detalhes que mudaram em relação ao plano original:
 >
-> **O que ainda não foi testado:** se o módulo HTTP do **Make** (não o `curl`) aceita
-> certificado `.p12` do mesmo jeito via a opção "Client Certificate" em Connections — isso
-> depende do plano da conta e ainda está bloqueado pelo bug do webhook (ver
-> `proximo-passo-teste-make.md`). Quando o Make voltar a funcionar, usar
-> `x-www-form-urlencoded` no módulo de autenticação, replicando exatamente o `testar-efi.ps1`.
+> - **Certificado mTLS no módulo HTTP do Make funciona**, mas o certificado/chave devem
+>   ser colados diretamente nos campos "Certificate"/"Private key" da keychain — a opção
+>   "Extract" a partir do `.p12` falhou (`Invalid password?`) mesmo com senha vazia
+>   correta. Extraia localmente com `openssl` e cole o PEM puro (nunca copie via
+>   WhatsApp/Bloco de Notas — caracteres invisíveis corrompem o certificado e geram
+>   `error:1E08010C:DECODER routines::unsupported` no Make, mesmo com o arquivo correto).
+> - **QR Code não vem pronto da Efí.** O endpoint `GET /v2/loc/:id/qrcode` retorna 403
+>   (`insufficient_scope`) porque a aplicação Efí da cliente não tem esse escopo liberado.
+>   Contornado gerando o QR Code **no navegador**, a partir do `pixCopiaECola` que já vem
+>   na resposta de `POST /v2/cob` (ver `landing/app.js`, lib `qrcode` via CDN).
+> - **Webhook da Efí exige mTLS por padrão no receptor** — como o Make não expõe um
+>   servidor com certificado próprio, o registro do webhook (`PUT /v2/webhook/:chave`)
+>   precisa do header `x-skip-mtls-checking: true`, senão a Efí recusa com
+>   `webhook_invalido`.
+> - O ambiente de homologação da Efí **simula pagamento automaticamente** depois de um
+>   tempo em cobranças de teste — não é preciso pagar de verdade pra testar o Scenario 2.
 
 Pré-requisito: rode `supabase/schema.sql` no projeto Supabase antes de configurar
-qualquer scenario aqui — os módulos abaixo dependem das funções `reservar_numero` e
-`confirmar_pagamento` já existirem (o schema já inclui o campo `cpf`, exigido pela Efí em
-`devedor.cpf`).
+qualquer scenario aqui — os módulos abaixo dependem das funções `reservar_numero`,
+`vincular_txid_efi`, `reserva_id_por_txid` e `confirmar_pagamento` já existirem.
 
 ## Status atual (já construído no Make)
 
-O scenario **"Rifa - Reservar Numero + Gerar PIX"** já existe no Make com:
+### Scenario 1 — "Rifa - Reservar Numero + Gerar PIX" (ID 6130107, ativo)
 
-- ✅ Módulo **2** — Webhook trigger (`Custom webhook`), URL:
-  `https://hook.us2.make.com/vf1kke3goyndyhmbu12vvwcgn6rpas00` (já está em `config.js`)
-- ✅ Módulo **3** — HTTP call pra `reservar_numero`, com os 3 headers criados
-  (`Content-Type` preenchido, `apikey` e `Authorization` **vazios — preencher com a
-  `SUPABASE_SERVICE_ROLE_KEY` do `.env`**) e o corpo já mapeado corretamente
-- ✅ Router adicionado logo depois, com 2 rotas vazias, esperando os filtros
+- ✅ Webhook trigger → `reservar_numero` (Supabase) → Router
+- ✅ Rota "falhou": responde `{sucesso:false, motivo:"numero_indisponivel"}`
+- ✅ Rota "ok": autentica na Efí (mTLS + Basic Auth) → `POST /v2/cob` → `vincular_txid_efi`
+  → responde `{sucesso:true, reserva_id, copia_cola}` (QR Code é gerado no front-end)
 
-**Atenção aos números dos módulos:** o Make não numera os módulos como 1, 2, 3 na ordem
-que você imagina — o Webhook virou módulo **2** e o HTTP módulo **3** (não 1 e 2), porque
-o Make incrementa o ID a cada tentativa, mesmo quando você apaga e refaz um módulo. Sempre
-que for referenciar um campo de outro módulo (`{{N.campo}}`), confirme o número real
-olhando o rótulo abaixo do ícone do módulo no canvas (ative "Show module ID" com botão
-direito no canvas vazio, se não estiver visível) — não assuma pela ordem visual.
+### Scenario 2 — "Rifa - Confirmar Pagamento Efi" (ID 6142000, ativo)
 
-**Por que os filtros das 2 rotas do Router ainda não foram configurados:** o seletor de
-campos do Make só sugere campos de módulos cujo formato ele já "viu" — e o Webhook nunca
-recebeu uma execução de verdade ainda (só um teste manual que não ficou registrado como
-amostra). Sem isso, não dá pra confirmar com segurança a sintaxe exata do caminho até
-`sucesso` dentro da resposta da função `reservar_numero` (ela retorna uma tabela/array,
-então pode ser `{{3.Data[1].sucesso}}` ou uma variação disso — não testei contra dado
-real). **Próximo passo recomendado:** clicar em **"Run once"** no scenario, disparar um
-teste real pela landing page (com `MOCK_MODE: false`), e depois configurar os filtros —
-nesse ponto o seletor de campos do Make vai sugerir `sucesso` diretamente, sem adivinhação.
+- ✅ Webhook trigger (URL já registrada na Efí com `x-skip-mtls-checking: true`) → Iterator
+  sobre `pix[]` → autentica na Efí → `GET /v2/cob/:txid` (nunca confia só no payload do
+  webhook) → filtro `status = CONCLUIDA` → `reserva_id_por_txid` → `confirmar_pagamento`
+  (idempotente por `gateway_txid`, testado com reenvio duplicado — não duplica)
 
-- Rota de cima (route 1): filtro `{{3.Data[1].sucesso}} = false` (ou o caminho certo que
-  aparecer depois do teste) → módulo de resposta de erro do Webhook
-- Rota de baixo (route 2): filtro `= true` → segue pros módulos da Efí (ainda não
-  construídos, aguardando as credenciais da chamada com a cliente)
-
-**Pré-requisito adicional:** confirmar se a conta Efí do cliente é Pessoa Física (CPF) ou
-Pessoa Jurídica — a Efí atende os dois, mas o cadastro e a chave PIX vinculada mudam
-conforme o tipo de conta. Como isso é uma rifa pessoal, é provável que seja conta PF.
+**Pendente:** repetir a configuração de certificado/keychain para **produção** quando a
+cliente estiver pronta pra cobrar de verdade (hoje tudo aponta pra
+`pix-h.api.efipay.com.br`, sandbox). Passo opcional do checklist original (notificação
+WhatsApp automática) ainda não construído — o fallback manual (chave PIX + link do
+WhatsApp na landing page) cobre isso por enquanto.
 
 ---
 
@@ -179,11 +171,11 @@ QR Code. Ainda assim, siga o padrão do projeto: a cliente cola o valor direto e
 
 ## Checklist antes de ir ao ar (gate do @qa)
 
-- [ ] **Testar o certificado mTLS no módulo HTTP do Make primeiro.** Se não funcionar, construir o proxy de fallback antes de continuar — é bloqueante pra tudo o resto.
-- [ ] Testar o fluxo inteiro no ambiente de homologação da Efí (`pix-h.api.efipay.com.br`) antes de usar chaves de produção
+- [x] **Testar o certificado mTLS no módulo HTTP do Make primeiro.** Funciona colando o PEM direto (ver nota no topo do doc).
+- [x] Testar o fluxo inteiro no ambiente de homologação da Efí (`pix-h.api.efipay.com.br`) — reserva + cobrança + confirmação testados ponta a ponta em 03/09.
 - [ ] Confirmar que a chave PIX aleatória cadastrada na Efí está ativa e corresponde à conta certa (testar com um pagamento de R$0,01 real em produção antes do lançamento)
 - [ ] Testar dois cliques simultâneos no mesmo número (duas abas) → só um deve conseguir reservar
-- [ ] Testar notificação duplicada da Efí (reenviar manualmente o mesmo webhook) → não deve duplicar confirmação nem WhatsApp
+- [x] Testar notificação duplicada da Efí (reenviar manualmente o mesmo webhook) → confirmado que não duplica (idempotência por `gateway_txid`). Notificação automática por WhatsApp ainda não construída.
 - [ ] Testar pagamento feito 1 minuto depois da cobrança expirada → deve cair na fila de exceção, não sumir
 - [ ] Manter a chave PIX estática do cliente visível na landing como alternativa manual
 - [ ] No dia do sorteio: conciliar extrato do Nubank × tabela `pagamentos` do Supabase, zero divergência
