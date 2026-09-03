@@ -138,7 +138,7 @@ begin
 
   select r.numero into v_numero from reservas r where r.id = p_reserva_id;
 
-  update numeros set status = 'pago', updated_at = now() where numero = v_numero;
+  update numeros set status = 'pago', updated_at = now() where numeros.numero = v_numero;
 
   return query select true, 'confirmado'::text, v_numero;
 end;
