@@ -72,8 +72,20 @@ function criarCelula(numero, status) {
   cel.className = `numero ${status}`;
   cel.textContent = formatarNumero(numero);
   cel.dataset.numero = String(numero);
-  cel.disabled = status !== 'disponivel';
-  cel.addEventListener('click', () => abrirModalCompra(numero));
+  cel.dataset.status = status;
+  // Sem `disabled` de propósito: um <button disabled> não dispara evento de clique
+  // nenhum, então quem clicasse num número reservado/pago não via nenhuma mensagem.
+  cel.addEventListener('click', () => {
+    if (cel.dataset.status !== 'disponivel') {
+      alert(
+        cel.dataset.status === 'reservado'
+          ? 'Esse número está em processo de pagamento por outra pessoa. Tente novamente em alguns minutos.'
+          : 'Esse número já foi vendido.'
+      );
+      return;
+    }
+    abrirModalCompra(numero);
+  });
   return cel;
 }
 
@@ -112,7 +124,7 @@ function atualizarCelula(numero, status) {
   const cel = gridEl.querySelector(`[data-numero="${numero}"]`);
   if (!cel) return;
   cel.className = `numero ${status}`;
-  cel.disabled = status !== 'disponivel';
+  cel.dataset.status = status;
 }
 
 function assinarAtualizacoesEmTempoReal() {
