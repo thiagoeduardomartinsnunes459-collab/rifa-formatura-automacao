@@ -66,13 +66,26 @@ function cpfValido(texto) {
   return apenasDigitos(texto).length === 11;
 }
 
-function criarCelula(numero, status) {
+// A reserva expira em 15 min (ver reservar_numero no schema.sql), mas o banco só marca
+// a linha como 'disponivel' de novo quando ALGUÉM tenta reservar aquele número —
+// ninguém "acorda" o status sozinho. Sem isso, um número expirado ficaria laranja pra
+// sempre na tela de quem só está olhando, até uma outra pessoa clicar nele por acaso.
+function statusEfetivo(status, reservadoAte) {
+  if (status === 'reservado' && reservadoAte && new Date(reservadoAte).getTime() < Date.now()) {
+    return 'disponivel';
+  }
+  return status;
+}
+
+function criarCelula(numero, status, reservadoAte) {
+  const efetivo = statusEfetivo(status, reservadoAte);
   const cel = document.createElement('button');
   cel.type = 'button';
-  cel.className = `numero ${status}`;
+  cel.className = `numero ${efetivo}`;
   cel.textContent = formatarNumero(numero);
   cel.dataset.numero = String(numero);
-  cel.dataset.status = status;
+  cel.dataset.status = efetivo;
+  cel.dataset.reservadoAte = reservadoAte || '';
   // Sem `disabled` de propósito: um <button disabled> não dispara evento de clique
   // nenhum, então quem clicasse num número reservado/pago não via nenhuma mensagem.
   cel.addEventListener('click', () => {
@@ -89,6 +102,18 @@ function criarCelula(numero, status) {
   return cel;
 }
 
+// Revalida periodicamente os números "reservado" na tela — sem isso, um número que
+// expirou só fica visualmente disponível de novo quando outra pessoa mexe nele.
+function revalidarExpiracoes() {
+  gridEl.querySelectorAll('.numero.reservado').forEach((cel) => {
+    const efetivo = statusEfetivo(cel.dataset.status, cel.dataset.reservadoAte);
+    if (efetivo !== cel.dataset.status) {
+      cel.className = `numero ${efetivo}`;
+      cel.dataset.status = efetivo;
+    }
+  });
+}
+
 async function carregarGrid() {
   if (CONFIG.MOCK_MODE) {
     gridEl.replaceChildren();
@@ -103,7 +128,7 @@ async function carregarGrid() {
   try {
     const { data, error } = await supabaseClient
       .from('numeros')
-      .select('numero, status')
+      .select('numero, status, reservado_ate')
       .order('numero', { ascending: true });
 
     if (error) throw error;
@@ -111,7 +136,7 @@ async function carregarGrid() {
     gridEl.replaceChildren();
     const fragment = document.createDocumentFragment();
     for (const linha of data) {
-      fragment.appendChild(criarCelula(linha.numero, linha.status));
+      fragment.appendChild(criarCelula(linha.numero, linha.status, linha.reservado_ate));
     }
     gridEl.appendChild(fragment);
   } catch (error) {
@@ -120,11 +145,13 @@ async function carregarGrid() {
   }
 }
 
-function atualizarCelula(numero, status) {
+function atualizarCelula(numero, status, reservadoAte) {
   const cel = gridEl.querySelector(`[data-numero="${numero}"]`);
   if (!cel) return;
-  cel.className = `numero ${status}`;
-  cel.dataset.status = status;
+  const efetivo = statusEfetivo(status, reservadoAte);
+  cel.className = `numero ${efetivo}`;
+  cel.dataset.status = efetivo;
+  cel.dataset.reservadoAte = reservadoAte || '';
 }
 
 function assinarAtualizacoesEmTempoReal() {
@@ -135,9 +162,11 @@ function assinarAtualizacoesEmTempoReal() {
     .on(
       'postgres_changes',
       { event: 'UPDATE', schema: 'public', table: 'numeros' },
-      (payload) => atualizarCelula(payload.new.numero, payload.new.status)
+      (payload) => atualizarCelula(payload.new.numero, payload.new.status, payload.new.reservado_ate)
     )
     .subscribe();
+
+  setInterval(revalidarExpiracoes, 15000);
 }
 
 function abrirModalCompra(numero) {
