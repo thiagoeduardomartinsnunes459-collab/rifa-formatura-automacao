@@ -174,8 +174,8 @@ QR Code. Ainda assim, siga o padrão do projeto: a cliente cola o valor direto e
 - [x] **Testar o certificado mTLS no módulo HTTP do Make primeiro.** Funciona colando o PEM direto (ver nota no topo do doc).
 - [x] Testar o fluxo inteiro no ambiente de homologação da Efí (`pix-h.api.efipay.com.br`) — reserva + cobrança + confirmação testados ponta a ponta em 03/09.
 - [ ] Confirmar que a chave PIX aleatória cadastrada na Efí está ativa e corresponde à conta certa (testar com um pagamento de R$0,01 real em produção antes do lançamento)
-- [ ] Testar dois cliques simultâneos no mesmo número (duas abas) → só um deve conseguir reservar
+- [x] Testar dois cliques simultâneos no mesmo número (duas abas) → confirmado via `reservar_numero` direto: só um dos dois consegue, sem inconsistência.
 - [x] Testar notificação duplicada da Efí (reenviar manualmente o mesmo webhook) → confirmado que não duplica (idempotência por `gateway_txid`). Notificação automática por WhatsApp ainda não construída.
-- [ ] Testar pagamento feito 1 minuto depois da cobrança expirada → deve cair na fila de exceção, não sumir
+- [x] Testar pagamento feito 1 minuto depois da cobrança expirada → **achou e corrigiu um bug real**: `confirmar_pagamento` sobrescrevia o número com o comprador ERRADO se ele já tivesse sido reservado por outra pessoa. Agora retorna `motivo: 'numero_realocado_revisar_manualmente'` sem tocar em `numeros` (pagamento fica registrado em `pagamentos` pra estorno manual). **Follow-up:** hoje esse motivo não dispara alerta nenhum — vale adicionar uma notificação (WhatsApp/e-mail) pro organizador quando isso acontecer, pra não passar despercebido.
 - [ ] Manter a chave PIX estática do cliente visível na landing como alternativa manual
 - [ ] No dia do sorteio: conciliar extrato do Nubank × tabela `pagamentos` do Supabase, zero divergência
