@@ -125,18 +125,30 @@ language plpgsql
 as $$
 declare
   v_numero smallint;
+  v_reserva_atual uuid;
 begin
   if exists (select 1 from pagamentos where gateway_txid = p_gateway_txid) then
     return query select false, 'ja_processado'::text, null::smallint;
     return;
   end if;
 
+  select r.numero into v_numero from reservas r where r.id = p_reserva_id;
+
   insert into pagamentos (gateway_txid, reserva_id, payload)
   values (p_gateway_txid, p_reserva_id, p_payload);
 
   update reservas set status = 'paga', paga_em = now() where id = p_reserva_id;
 
-  select r.numero into v_numero from reservas r where r.id = p_reserva_id;
+  -- Pagamento pode chegar atrasado (depois da cobrança expirar e o número já ter
+  -- sido reservado por outra pessoa). O pagamento em si é sempre registrado acima
+  -- (rastro pra estorno manual), mas só marcamos o número como vendido se ele
+  -- ainda pertencer a ESTA reserva -- senão venderíamos o mesmo número duas vezes.
+  select n.reserva_id into v_reserva_atual from numeros n where n.numero = v_numero;
+
+  if v_reserva_atual is distinct from p_reserva_id then
+    return query select false, 'numero_realocado_revisar_manualmente'::text, v_numero;
+    return;
+  end if;
 
   update numeros set status = 'pago', updated_at = now() where numeros.numero = v_numero;
 
