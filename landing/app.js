@@ -18,9 +18,21 @@ const pixCopiaColaEl = document.getElementById('pix-copiacola');
 const pixStatusEl = document.getElementById('pix-status');
 const fallbackChavePixEl = document.getElementById('fallback-chave-pix');
 const fallbackWhatsappEl = document.getElementById('fallback-whatsapp');
+const toastEl = document.getElementById('toast');
+const blocosJumpEl = document.getElementById('blocos-jump');
+const buscaEl = document.getElementById('busca-numero');
+const btnSorteEl = document.getElementById('btn-sorte');
 
 let numeroSelecionado = null;
 let pollTimer = null;
+let toastTimer = null;
+
+function mostrarToast(mensagem) {
+  clearTimeout(toastTimer);
+  toastEl.textContent = mensagem;
+  toastEl.classList.add('show');
+  toastTimer = setTimeout(() => toastEl.classList.remove('show'), 3200);
+}
 
 // Estado em memória usado só quando CONFIG.MOCK_MODE = true — deixa a página inteira
 // demonstrável sem Supabase nem Efí configurados ainda (ver README).
@@ -72,10 +84,10 @@ function criarCelula(numero, status, reservadoAte) {
   // nenhum, então quem clicasse num número reservado/pago não via nenhuma mensagem.
   cel.addEventListener('click', () => {
     if (cel.dataset.status !== 'disponivel') {
-      alert(
+      mostrarToast(
         cel.dataset.status === 'reservado'
-          ? 'Esse número está em processo de pagamento por outra pessoa. Tente novamente em alguns minutos.'
-          : 'Esse número já foi vendido.'
+          ? `Número ${formatarNumero(numero)} está em processo de pagamento por outra pessoa.`
+          : `Número ${formatarNumero(numero)} já foi vendido.`
       );
       return;
     }
@@ -96,11 +108,56 @@ function revalidarExpiracoes() {
   });
 }
 
+function tituloBlocoSeInicio(fragment, numero) {
+  if ((numero - 1) % 100 !== 0) return;
+  const titulo = document.createElement('div');
+  titulo.className = 'bloco-titulo';
+  titulo.id = `bloco-${numero}`;
+  titulo.textContent = `${formatarNumero(numero)}–${formatarNumero(Math.min(numero + 99, CONFIG.TOTAL_NUMEROS))}`;
+  fragment.appendChild(titulo);
+}
+
+function montarBlocosJump() {
+  blocosJumpEl.replaceChildren();
+  for (let inicio = 1; inicio <= CONFIG.TOTAL_NUMEROS; inicio += 100) {
+    const fim = Math.min(inicio + 99, CONFIG.TOTAL_NUMEROS);
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = `${formatarNumero(inicio)}–${formatarNumero(fim)}`;
+    btn.addEventListener('click', () => {
+      document.getElementById(`bloco-${inicio}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    blocosJumpEl.appendChild(btn);
+  }
+}
+
+function destacarNumero(numero) {
+  const cel = gridEl.querySelector(`[data-numero="${numero}"]`);
+  if (!cel) return;
+  cel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  cel.classList.add('sorteado');
+  setTimeout(() => cel.classList.remove('sorteado'), 2300);
+}
+
+buscaEl.addEventListener('input', () => {
+  const numero = Number(apenasDigitos(buscaEl.value));
+  if (!numero || numero < 1 || numero > CONFIG.TOTAL_NUMEROS) return;
+  destacarNumero(numero);
+});
+
+btnSorteEl.addEventListener('click', () => {
+  const disponiveis = [...gridEl.querySelectorAll('.numero.disponivel')];
+  if (disponiveis.length === 0) return;
+  const escolhido = disponiveis[Math.floor(Math.random() * disponiveis.length)];
+  destacarNumero(Number(escolhido.dataset.numero));
+});
+
 async function carregarGrid() {
   if (CONFIG.MOCK_MODE) {
     gridEl.replaceChildren();
     const fragment = document.createDocumentFragment();
     for (const [numero, status] of mockStore.numeros) {
+      tituloBlocoSeInicio(fragment, numero);
       fragment.appendChild(criarCelula(numero, status));
     }
     gridEl.appendChild(fragment);
@@ -118,6 +175,7 @@ async function carregarGrid() {
     gridEl.replaceChildren();
     const fragment = document.createDocumentFragment();
     for (const linha of data) {
+      tituloBlocoSeInicio(fragment, linha.numero);
       fragment.appendChild(criarCelula(linha.numero, linha.status, linha.reservado_ate));
     }
     gridEl.appendChild(fragment);
@@ -391,5 +449,6 @@ if (CONFIG.MOCK_MODE) {
   inicializarMockGrid();
 }
 
+montarBlocosJump();
 carregarGrid();
 assinarAtualizacoesEmTempoReal();

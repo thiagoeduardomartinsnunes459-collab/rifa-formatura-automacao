@@ -12,34 +12,37 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <header class="header">
-    <span class="header-badge">🎓 Formatura em Direito</span>
-    <h1>Rifa Solidária</h1>
-    <p class="header-sub">Escolha seu número, pague pelo PIX e concorra aos prêmios abaixo!</p>
-    <div class="sorteio-info">
-      <span>📅 10 de fevereiro</span>
-      <span>🕗 20h</span>
-      <span>📱 Ao vivo no Instagram</span>
-    </div>
-  </header>
+  <div class="hero-watermark">
+    <header class="header">
+      <span class="header-badge">🎓 Formatura em Direito</span>
+      <h1>Rifa Solidária</h1>
+      <p class="header-sub">Escolha seu número, pague pelo PIX e concorra aos prêmios abaixo!</p>
+      <div class="sorteio-info">
+        <span>📅 10 de fevereiro</span>
+        <span>🕗 20h</span>
+        <span>📱 Ao vivo no Instagram</span>
+      </div>
+    </header>
 
-  <section class="premios">
-    <div class="premio-card">
-      <span class="premio-medalha">🥇</span>
-      <span class="premio-titulo">Smart TV 32"</span>
-      <span class="premio-desc">Top demais!</span>
-    </div>
-    <div class="premio-card">
-      <span class="premio-medalha">🥈</span>
-      <span class="premio-titulo">Kit de Beleza</span>
-      <span class="premio-desc">Passei longe do ruim!</span>
-    </div>
-    <div class="premio-card">
-      <span class="premio-medalha">🥉</span>
-      <span class="premio-titulo">Copo Térmico</span>
-      <span class="premio-desc">Sempre útil!</span>
-    </div>
-  </section>
+    <h2 class="secao-titulo">Prêmios</h2>
+    <section class="premios">
+      <div class="premio-card destaque-1">
+        <span class="premio-medalha">🥇</span>
+        <span class="premio-titulo">Smart TV 32"</span>
+        <span class="premio-desc">Top demais!</span>
+      </div>
+      <div class="premio-card">
+        <span class="premio-medalha">🥈</span>
+        <span class="premio-titulo">Kit de Beleza</span>
+        <span class="premio-desc">Passei longe do ruim!</span>
+      </div>
+      <div class="premio-card">
+        <span class="premio-medalha">🥉</span>
+        <span class="premio-titulo">Copo Térmico</span>
+        <span class="premio-desc">Sempre útil!</span>
+      </div>
+    </section>
+  </div>
 
   <section class="legenda">
     <span class="chip disponivel">Disponível</span>
@@ -48,10 +51,17 @@
   </section>
 
   <main>
+    <div class="grid-nav">
+      <input type="search" id="busca-numero" placeholder="Buscar número (ex: 0042)" aria-label="Buscar número" />
+      <button type="button" class="btn-sorte" id="btn-sorte">🎲 Número da sorte</button>
+    </div>
+    <div class="blocos-jump" id="blocos-jump" aria-label="Ir para bloco de números"></div>
     <div class="grid-wrapper">
       <div id="grid" class="grid" aria-label="Grade de números da rifa"></div>
     </div>
   </main>
+
+  <div id="toast" role="status" aria-live="polite"></div>
 
   <dialog id="modal-compra">
     <form id="form-compra" method="dialog">
