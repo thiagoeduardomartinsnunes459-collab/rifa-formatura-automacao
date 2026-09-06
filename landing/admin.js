@@ -36,10 +36,13 @@ const sorteioResultadoEl = document.getElementById('sorteio-resultado');
 const sorteioListaVencedoresEl = document.getElementById('sorteio-lista-vencedores');
 const btnSorteioFechar = document.getElementById('btn-sorteio-fechar');
 
+// Ordem de revelação: do prêmio menor pro maior, guardando a Smart TV pro final
+// (mais suspense). A medalha de cada item reflete a colocação real do prêmio, não
+// a ordem em que é sorteado.
 const PREMIOS = [
-  { medalha: '🥇', titulo: 'Smart TV 32"' },
-  { medalha: '🥈', titulo: 'Kit de Beleza' },
   { medalha: '🥉', titulo: 'Copo Térmico' },
+  { medalha: '🥈', titulo: 'Kit de Beleza' },
+  { medalha: '🥇', titulo: 'Smart TV 32"' },
 ];
 
 let reservasCache = [];
