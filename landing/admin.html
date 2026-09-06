@@ -32,7 +32,10 @@
         <span class="header-badge">🎓 Formatura em Direito</span>
         <h1>Painel de Compradores</h1>
       </div>
-      <button type="button" id="btn-sair">Sair</button>
+      <div class="painel-header-acoes">
+        <button type="button" id="btn-sorteio" class="btn-sorteio">🎉 Sortear Ganhadores</button>
+        <button type="button" id="btn-sair">Sair</button>
+      </div>
     </header>
 
     <section class="stats">
@@ -69,6 +72,34 @@
       <p class="carregando">Carregando compradores...</p>
     </main>
   </div>
+
+  <dialog id="modal-sorteio">
+    <div id="sorteio-intro">
+      <span class="login-badge">🎉 Sorteio</span>
+      <h1>Sortear os ganhadores</h1>
+      <p id="sorteio-intro-texto" class="login-sub"></p>
+      <div class="sorteio-acoes">
+        <button type="button" id="btn-sorteio-cancelar">Cancelar</button>
+        <button type="button" id="btn-sorteio-iniciar" class="btn-sorteio">Sortear agora</button>
+      </div>
+    </div>
+
+    <div id="sorteio-palco" hidden>
+      <span class="sorteio-premio-medalha" id="sorteio-medalha"></span>
+      <span class="sorteio-premio-titulo" id="sorteio-titulo-premio"></span>
+      <div class="sorteio-vitrine">
+        <span class="sorteio-numero" id="sorteio-numero">0000</span>
+        <span class="sorteio-nome" id="sorteio-nome">—</span>
+      </div>
+    </div>
+
+    <div id="sorteio-resultado" hidden>
+      <span class="login-badge">🏆 Resultado</span>
+      <h1>Temos os ganhadores!</h1>
+      <ul id="sorteio-lista-vencedores" class="sorteio-lista-vencedores"></ul>
+      <button type="button" id="btn-sorteio-fechar" class="btn-sorteio">Fechar</button>
+    </div>
+  </dialog>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="config.js"></script>

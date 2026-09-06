@@ -21,6 +21,27 @@ const statVendidosEl = document.getElementById('stat-vendidos');
 const statPendentesEl = document.getElementById('stat-pendentes');
 const statArrecadadoEl = document.getElementById('stat-arrecadado');
 
+const btnSorteio = document.getElementById('btn-sorteio');
+const modalSorteio = document.getElementById('modal-sorteio');
+const sorteioIntroEl = document.getElementById('sorteio-intro');
+const sorteioIntroTextoEl = document.getElementById('sorteio-intro-texto');
+const btnSorteioCancelar = document.getElementById('btn-sorteio-cancelar');
+const btnSorteioIniciar = document.getElementById('btn-sorteio-iniciar');
+const sorteioPalcoEl = document.getElementById('sorteio-palco');
+const sorteioMedalhaEl = document.getElementById('sorteio-medalha');
+const sorteioTituloPremioEl = document.getElementById('sorteio-titulo-premio');
+const sorteioNumeroEl = document.getElementById('sorteio-numero');
+const sorteioNomeEl = document.getElementById('sorteio-nome');
+const sorteioResultadoEl = document.getElementById('sorteio-resultado');
+const sorteioListaVencedoresEl = document.getElementById('sorteio-lista-vencedores');
+const btnSorteioFechar = document.getElementById('btn-sorteio-fechar');
+
+const PREMIOS = [
+  { medalha: '🥇', titulo: 'Smart TV 32"' },
+  { medalha: '🥈', titulo: 'Kit de Beleza' },
+  { medalha: '🥉', titulo: 'Copo Térmico' },
+];
+
 let reservasCache = [];
 let filtroAtivo = 'todos';
 
@@ -231,6 +252,161 @@ filtroBtns.forEach((btn) => {
     renderizarLista();
   });
 });
+
+// Embaralha com Fisher-Yates usando crypto.getRandomValues (mais imparcial que
+// Math.random pra decidir quem ganha prêmio de verdade).
+function embaralhar(lista) {
+  const copia = [...lista];
+  for (let i = copia.length - 1; i > 0; i -= 1) {
+    const j = crypto.getRandomValues(new Uint32Array(1))[0] % (i + 1);
+    [copia[i], copia[j]] = [copia[j], copia[i]];
+  }
+  return copia;
+}
+
+function dispararConfeteSorteio() {
+  const canvas = document.createElement('canvas');
+  canvas.className = 'sorteio-confete-canvas';
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  modalSorteio.appendChild(canvas);
+  const ctx = canvas.getContext('2d');
+
+  const cores = ['#f472b6', '#db2777', '#e5c158', '#d4af37', '#ffffff'];
+  const particulas = Array.from({ length: 160 }, () => ({
+    x: canvas.width / 2,
+    y: canvas.height / 3,
+    vx: (Math.random() - 0.5) * 16,
+    vy: Math.random() * -15 - 5,
+    tamanho: Math.random() * 6 + 4,
+    cor: cores[Math.floor(Math.random() * cores.length)],
+    rotacao: Math.random() * Math.PI * 2,
+    vRotacao: (Math.random() - 0.5) * 0.3,
+    gravidade: 0.35,
+    vida: 0,
+    vidaMax: 90 + Math.random() * 30,
+  }));
+
+  function frame() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    let ativas = false;
+    for (const p of particulas) {
+      if (p.vida >= p.vidaMax) continue;
+      ativas = true;
+      p.vida += 1;
+      p.vx *= 0.99;
+      p.vy += p.gravidade;
+      p.x += p.vx;
+      p.y += p.vy;
+      p.rotacao += p.vRotacao;
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, 1 - p.vida / p.vidaMax);
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rotacao);
+      ctx.fillStyle = p.cor;
+      ctx.fillRect(-p.tamanho / 2, -p.tamanho / 4, p.tamanho, p.tamanho / 2);
+      ctx.restore();
+    }
+    if (ativas) {
+      requestAnimationFrame(frame);
+    } else {
+      canvas.remove();
+    }
+  }
+  requestAnimationFrame(frame);
+}
+
+function poolElegivel() {
+  return reservasCache.filter((r) => r.status === 'paga');
+}
+
+btnSorteio.addEventListener('click', () => {
+  const pool = poolElegivel();
+  sorteioIntroEl.hidden = false;
+  sorteioPalcoEl.hidden = true;
+  sorteioResultadoEl.hidden = true;
+
+  if (pool.length === 0) {
+    sorteioIntroTextoEl.textContent = 'Ainda não tem nenhum número pago pra sortear.';
+    btnSorteioIniciar.hidden = true;
+  } else {
+    const qtdPremios = Math.min(PREMIOS.length, pool.length);
+    sorteioIntroTextoEl.textContent = `${pool.length} número${pool.length > 1 ? 's' : ''} pago${pool.length > 1 ? 's' : ''} concorrendo. Vamos sortear ${qtdPremios} prêmio${qtdPremios > 1 ? 's' : ''}.`;
+    btnSorteioIniciar.hidden = false;
+  }
+
+  modalSorteio.showModal();
+});
+
+btnSorteioCancelar.addEventListener('click', () => modalSorteio.close());
+btnSorteioFechar.addEventListener('click', () => modalSorteio.close());
+
+btnSorteioIniciar.addEventListener('click', () => {
+  const pool = poolElegivel();
+  const qtdPremios = Math.min(PREMIOS.length, pool.length);
+  const sorteados = embaralhar(pool).slice(0, qtdPremios);
+
+  sorteioIntroEl.hidden = true;
+  sorteioResultadoEl.hidden = true;
+  sorteioPalcoEl.hidden = false;
+
+  revelarPremio(0, sorteados);
+});
+
+function revelarPremio(indice, sorteados) {
+  if (indice >= sorteados.length) {
+    mostrarResultadoFinal(sorteados);
+    return;
+  }
+
+  const premio = PREMIOS[indice];
+  const vencedor = sorteados[indice];
+  const poolTodo = poolElegivel();
+
+  sorteioMedalhaEl.textContent = premio.medalha;
+  sorteioTituloPremioEl.textContent = premio.titulo;
+  sorteioNumeroEl.classList.add('girando');
+  sorteioNomeEl.classList.add('girando');
+
+  const duracaoMs = 2200;
+  const inicio = performance.now();
+
+  function ciclo(agora) {
+    const decorrido = agora - inicio;
+    if (decorrido < duracaoMs) {
+      const candidato = poolTodo[Math.floor(Math.random() * poolTodo.length)];
+      sorteioNumeroEl.textContent = formatarNumero(candidato.numero);
+      sorteioNomeEl.textContent = candidato.nome;
+      requestAnimationFrame(ciclo);
+    } else {
+      sorteioNumeroEl.classList.remove('girando');
+      sorteioNomeEl.classList.remove('girando');
+      sorteioNumeroEl.textContent = formatarNumero(vencedor.numero);
+      sorteioNomeEl.textContent = vencedor.nome;
+      dispararConfeteSorteio();
+      setTimeout(() => revelarPremio(indice + 1, sorteados), 2400);
+    }
+  }
+  requestAnimationFrame(ciclo);
+}
+
+function mostrarResultadoFinal(sorteados) {
+  sorteioPalcoEl.hidden = true;
+  sorteioResultadoEl.hidden = false;
+  sorteioListaVencedoresEl.replaceChildren();
+
+  sorteados.forEach((vencedor, indice) => {
+    const item = document.createElement('li');
+    item.innerHTML = `
+      <span class="sorteio-resultado-medalha">${PREMIOS[indice].medalha}</span>
+      <div class="sorteio-resultado-info">
+        <strong>${vencedor.nome}</strong>
+        <span>Número ${formatarNumero(vencedor.numero)} · ${PREMIOS[indice].titulo}</span>
+      </div>
+    `;
+    sorteioListaVencedoresEl.appendChild(item);
+  });
+}
 
 (async function iniciar() {
   const autenticado = await carregarPainel();

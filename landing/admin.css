@@ -153,6 +153,13 @@ dialog::backdrop {
   margin: 0;
 }
 
+.painel-header-acoes {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
 #btn-sair {
   padding: 0.55rem 1.1rem;
   border-radius: 0.5rem;
@@ -166,6 +173,29 @@ dialog::backdrop {
 #btn-sair:hover {
   border-color: var(--cor-destaque-forte);
   color: var(--cor-texto);
+}
+
+.btn-sorteio {
+  padding: 0.85rem 1.6rem;
+  border: none;
+  border-radius: 0.7rem;
+  background: linear-gradient(135deg, var(--cor-destaque), var(--cor-destaque-forte));
+  color: #fff;
+  font-weight: 800;
+  font-size: 1.02rem;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(219, 39, 119, 0.35);
+  transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
+}
+
+.btn-sorteio:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.08);
+  box-shadow: 0 10px 30px rgba(219, 39, 119, 0.45);
+}
+
+.btn-sorteio:active {
+  transform: translateY(0);
 }
 
 .stats {
@@ -358,6 +388,142 @@ dialog::backdrop {
 .numero-chip.cancelada {
   background: #3f3f46;
   color: var(--cor-texto-suave);
+}
+
+/* Modal de sorteio */
+#modal-sorteio {
+  max-width: 34rem;
+  width: 92%;
+  position: relative;
+  overflow: hidden;
+  text-align: center;
+  background: radial-gradient(circle at 50% 0%, rgba(244, 114, 182, 0.16), transparent 55%), #15151d;
+}
+
+#modal-sorteio h1 {
+  font-family: var(--fonte-titulo);
+  color: var(--cor-destaque-forte);
+  margin: 0 0 0.5rem;
+  font-size: 1.6rem;
+}
+
+.sorteio-acoes {
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+
+.sorteio-acoes button:first-child {
+  padding: 0.85rem 1.4rem;
+  border-radius: 0.7rem;
+  border: 1px solid var(--cor-borda);
+  background: transparent;
+  color: var(--cor-texto-suave);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.sorteio-premio-medalha {
+  display: block;
+  font-size: 3.2rem;
+  line-height: 1;
+  margin-bottom: 0.3rem;
+}
+
+.sorteio-premio-titulo {
+  display: block;
+  color: var(--cor-secundaria);
+  font-weight: 700;
+  font-size: 1.05rem;
+  margin-bottom: 1.5rem;
+  letter-spacing: 0.02em;
+}
+
+.sorteio-vitrine {
+  padding: 1.75rem 1rem;
+  border-radius: 1rem;
+  background: var(--cor-fundo);
+  border: 1px solid var(--cor-borda);
+}
+
+.sorteio-numero {
+  display: block;
+  font-family: var(--fonte-titulo);
+  font-size: clamp(2.2rem, 8vw, 3.2rem);
+  font-weight: 800;
+  background: linear-gradient(135deg, var(--cor-secundaria), var(--cor-secundaria-forte));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  margin-bottom: 0.5rem;
+}
+
+.sorteio-nome {
+  display: block;
+  font-family: var(--fonte-titulo);
+  font-size: clamp(1.4rem, 5vw, 1.9rem);
+  font-weight: 700;
+  color: var(--cor-texto);
+}
+
+.sorteio-numero.girando,
+.sorteio-nome.girando {
+  filter: blur(0.5px);
+  opacity: 0.85;
+}
+
+.sorteio-lista-vencedores {
+  list-style: none;
+  margin: 1.25rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  text-align: left;
+}
+
+.sorteio-lista-vencedores li {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 0.9rem 1.1rem;
+  border-radius: 0.8rem;
+  background: var(--cor-fundo);
+  border: 1px solid var(--cor-borda);
+}
+
+.sorteio-resultado-medalha {
+  font-size: 1.8rem;
+  flex-shrink: 0;
+}
+
+.sorteio-resultado-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.sorteio-resultado-info strong {
+  font-size: 1.02rem;
+}
+
+.sorteio-resultado-info span {
+  font-size: 0.82rem;
+  color: var(--cor-texto-suave);
+}
+
+#btn-sorteio-fechar {
+  margin-top: 1.5rem;
+}
+
+.sorteio-confete-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 5;
 }
 
 @media (max-width: 480px) {
