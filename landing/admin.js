@@ -11,6 +11,7 @@ const btnEntrar = document.getElementById('btn-entrar');
 const painelEl = document.getElementById('painel');
 const btnSair = document.getElementById('btn-sair');
 const listaEl = document.getElementById('lista-compradores');
+const ultimaAtualizacaoEl = document.getElementById('ultima-atualizacao');
 const buscaEl = document.getElementById('busca');
 const btnAtualizar = document.getElementById('btn-atualizar');
 const filtroBtns = document.querySelectorAll('.filtro-btn');
@@ -152,27 +153,42 @@ function renderizarLista() {
   }
 }
 
-async function carregarPainel() {
+const AUTO_REFRESH_MS = 15000;
+let autoRefreshTimer = null;
+
+// silencioso=true (usado pelo auto-refresh) não mostra "Carregando..." nem mexe no
+// scroll/estado da busca — só troca os dados por baixo, pra não piscar a tela nem
+// atrapalhar quem está digitando na busca.
+async function carregarPainel(silencioso = false) {
   const token = localStorage.getItem(TOKEN_STORAGE_KEY);
   if (!token) return false;
 
   try {
-    listaEl.replaceChildren();
-    const carregando = document.createElement('p');
-    carregando.className = 'carregando';
-    carregando.textContent = 'Carregando compradores...';
-    listaEl.appendChild(carregando);
+    if (!silencioso) {
+      listaEl.replaceChildren();
+      const carregando = document.createElement('p');
+      carregando.className = 'carregando';
+      carregando.textContent = 'Carregando compradores...';
+      listaEl.appendChild(carregando);
+    }
 
     reservasCache = await buscarReservas(token);
     atualizarStats(reservasCache);
     renderizarLista();
     modalLogin.close();
     painelEl.hidden = false;
+    ultimaAtualizacaoEl.textContent = `Atualizado automaticamente às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
+
+    if (!autoRefreshTimer) {
+      autoRefreshTimer = setInterval(() => carregarPainel(true), AUTO_REFRESH_MS);
+    }
     return true;
   } catch (error) {
     console.error('Falha ao carregar painel', { error });
-    localStorage.removeItem(TOKEN_STORAGE_KEY);
-    painelEl.hidden = true;
+    if (!silencioso) {
+      localStorage.removeItem(TOKEN_STORAGE_KEY);
+      painelEl.hidden = true;
+    }
     return false;
   }
 }
@@ -195,6 +211,8 @@ formLogin.addEventListener('submit', async (event) => {
 });
 
 btnSair.addEventListener('click', () => {
+  clearInterval(autoRefreshTimer);
+  autoRefreshTimer = null;
   localStorage.removeItem(TOKEN_STORAGE_KEY);
   painelEl.hidden = true;
   inputToken.value = '';
