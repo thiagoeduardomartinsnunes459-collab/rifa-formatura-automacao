@@ -35,6 +35,7 @@ const sorteioNomeEl = document.getElementById('sorteio-nome');
 const sorteioResultadoEl = document.getElementById('sorteio-resultado');
 const sorteioListaVencedoresEl = document.getElementById('sorteio-lista-vencedores');
 const btnSorteioFechar = document.getElementById('btn-sorteio-fechar');
+const btnSorteioProximo = document.getElementById('btn-sorteio-proximo');
 
 // Ordem de revelação: do prêmio menor pro maior, guardando a Smart TV pro final
 // (mais suspense). A medalha de cada item reflete a colocação real do prêmio, não
@@ -344,30 +345,50 @@ btnSorteio.addEventListener('click', () => {
 btnSorteioCancelar.addEventListener('click', () => modalSorteio.close());
 btnSorteioFechar.addEventListener('click', () => modalSorteio.close());
 
+// Sorteio manual, prêmio por prêmio: a cliente controla o ritmo (útil numa live).
+// Os vencedores já ficam definidos assim que ela clica em "Sortear agora" (pra não
+// mudar de resultado se ela recarregar a lista no meio do sorteio), mas cada
+// revelação individual só acontece quando ela clica no botão daquele prêmio.
+const sorteioEstado = { sorteados: [], indice: 0 };
+
 btnSorteioIniciar.addEventListener('click', () => {
   const pool = poolElegivel();
   const qtdPremios = Math.min(PREMIOS.length, pool.length);
-  const sorteados = embaralhar(pool).slice(0, qtdPremios);
+  sorteioEstado.sorteados = embaralhar(pool).slice(0, qtdPremios);
+  sorteioEstado.indice = 0;
 
   sorteioIntroEl.hidden = true;
   sorteioResultadoEl.hidden = true;
   sorteioPalcoEl.hidden = false;
 
-  revelarPremio(0, sorteados);
+  prepararProximoPremio();
 });
 
-function revelarPremio(indice, sorteados) {
+function prepararProximoPremio() {
+  const { sorteados, indice } = sorteioEstado;
   if (indice >= sorteados.length) {
     mostrarResultadoFinal(sorteados);
     return;
   }
 
   const premio = PREMIOS[indice];
+  sorteioMedalhaEl.textContent = premio.medalha;
+  sorteioTituloPremioEl.textContent = premio.titulo;
+  sorteioNumeroEl.classList.remove('girando');
+  sorteioNomeEl.classList.remove('girando');
+  sorteioNumeroEl.textContent = '????';
+  sorteioNomeEl.textContent = 'Clique pra sortear';
+  btnSorteioProximo.hidden = false;
+  btnSorteioProximo.textContent = `🎲 Sortear ${premio.titulo}`;
+}
+
+btnSorteioProximo.addEventListener('click', () => {
+  btnSorteioProximo.hidden = true;
+
+  const { sorteados, indice } = sorteioEstado;
   const vencedor = sorteados[indice];
   const poolTodo = poolElegivel();
 
-  sorteioMedalhaEl.textContent = premio.medalha;
-  sorteioTituloPremioEl.textContent = premio.titulo;
   sorteioNumeroEl.classList.add('girando');
   sorteioNomeEl.classList.add('girando');
 
@@ -387,11 +408,12 @@ function revelarPremio(indice, sorteados) {
       sorteioNumeroEl.textContent = formatarNumero(vencedor.numero);
       sorteioNomeEl.textContent = vencedor.nome;
       dispararConfeteSorteio();
-      setTimeout(() => revelarPremio(indice + 1, sorteados), 2400);
+      sorteioEstado.indice += 1;
+      setTimeout(prepararProximoPremio, 1400);
     }
   }
   requestAnimationFrame(ciclo);
-}
+});
 
 function mostrarResultadoFinal(sorteados) {
   sorteioPalcoEl.hidden = true;

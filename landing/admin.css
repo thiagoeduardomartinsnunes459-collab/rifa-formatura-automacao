@@ -447,6 +447,10 @@ dialog::backdrop {
   border: 1px solid var(--cor-borda);
 }
 
+#btn-sorteio-proximo {
+  margin-top: 1.5rem;
+}
+
 .sorteio-numero {
   display: block;
   font-family: var(--fonte-titulo);
