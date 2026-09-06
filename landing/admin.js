@@ -32,6 +32,7 @@ const sorteioMedalhaEl = document.getElementById('sorteio-medalha');
 const sorteioTituloPremioEl = document.getElementById('sorteio-titulo-premio');
 const sorteioNumeroEl = document.getElementById('sorteio-numero');
 const sorteioNomeEl = document.getElementById('sorteio-nome');
+const sorteioTelefoneEl = document.getElementById('sorteio-telefone');
 const sorteioResultadoEl = document.getElementById('sorteio-resultado');
 const sorteioListaVencedoresEl = document.getElementById('sorteio-lista-vencedores');
 const btnSorteioFechar = document.getElementById('btn-sorteio-fechar');
@@ -364,6 +365,11 @@ btnSorteioIniciar.addEventListener('click', () => {
   prepararProximoPremio();
 });
 
+function ultimosDigitosTelefone(whatsapp) {
+  const digitos = (whatsapp || '').replace(/\D/g, '');
+  return digitos.slice(-4) || '----';
+}
+
 function prepararProximoPremio() {
   const { sorteados, indice } = sorteioEstado;
   if (indice >= sorteados.length) {
@@ -378,11 +384,17 @@ function prepararProximoPremio() {
   sorteioNomeEl.classList.remove('girando');
   sorteioNumeroEl.textContent = '????';
   sorteioNomeEl.textContent = 'Clique pra sortear';
+  sorteioTelefoneEl.textContent = '';
   btnSorteioProximo.hidden = false;
   btnSorteioProximo.textContent = `🎲 Sortear ${premio.titulo}`;
+  btnSorteioProximo.onclick = executarSorteioAtual;
 }
 
-btnSorteioProximo.addEventListener('click', () => {
+// Sorteia e revela o prêmio atual. Depois de travar no vencedor (nome + 4 últimos
+// dígitos do telefone, bem destacados), NÃO avança sozinho -- fica parado até a
+// cliente clicar em "Continuar", dando tempo dela anunciar o ganhador numa live
+// antes de seguir pro próximo prêmio.
+function executarSorteioAtual() {
   btnSorteioProximo.hidden = true;
 
   const { sorteados, indice } = sorteioEstado;
@@ -401,19 +413,29 @@ btnSorteioProximo.addEventListener('click', () => {
       const candidato = poolTodo[Math.floor(Math.random() * poolTodo.length)];
       sorteioNumeroEl.textContent = formatarNumero(candidato.numero);
       sorteioNomeEl.textContent = candidato.nome;
+      sorteioTelefoneEl.textContent = `📱 final ${ultimosDigitosTelefone(candidato.whatsapp)}`;
       requestAnimationFrame(ciclo);
     } else {
       sorteioNumeroEl.classList.remove('girando');
       sorteioNomeEl.classList.remove('girando');
       sorteioNumeroEl.textContent = formatarNumero(vencedor.numero);
       sorteioNomeEl.textContent = vencedor.nome;
+      sorteioTelefoneEl.textContent = `📱 final ${ultimosDigitosTelefone(vencedor.whatsapp)}`;
       dispararConfeteSorteio();
       sorteioEstado.indice += 1;
-      setTimeout(prepararProximoPremio, 1400);
+
+      const haProximoPremio = sorteioEstado.indice < sorteados.length;
+      setTimeout(() => {
+        btnSorteioProximo.hidden = false;
+        btnSorteioProximo.textContent = haProximoPremio ? '➡️ Continuar' : '🏆 Ver Resultado Final';
+        btnSorteioProximo.onclick = haProximoPremio
+          ? prepararProximoPremio
+          : () => mostrarResultadoFinal(sorteados);
+      }, 600);
     }
   }
   requestAnimationFrame(ciclo);
-});
+}
 
 function mostrarResultadoFinal(sorteados) {
   sorteioPalcoEl.hidden = true;

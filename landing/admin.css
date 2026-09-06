@@ -471,6 +471,15 @@ dialog::backdrop {
   color: var(--cor-texto);
 }
 
+.sorteio-telefone {
+  display: block;
+  margin-top: 0.5rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--cor-secundaria);
+  letter-spacing: 0.03em;
+}
+
 .sorteio-numero.girando,
 .sorteio-nome.girando {
   filter: blur(0.5px);
