@@ -502,6 +502,18 @@ dialog::backdrop {
   font-size: 1.6rem;
 }
 
+.sorteio-aviso {
+  color: #f59e0b;
+  font-size: 0.85rem;
+  font-weight: 600;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-radius: 0.6rem;
+  padding: 0.65rem 0.85rem;
+  margin: 0 0 0.25rem;
+  text-align: left;
+}
+
 .sorteio-acoes {
   display: flex;
   justify-content: center;

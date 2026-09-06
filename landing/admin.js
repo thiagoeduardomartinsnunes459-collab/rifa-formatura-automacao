@@ -41,6 +41,9 @@ const btnSorteioProximo = document.getElementById('btn-sorteio-proximo');
 const historicoVazioEl = document.getElementById('historico-vazio');
 const historicoListaEl = document.getElementById('historico-lista');
 const btnHistoricoAtualizar = document.getElementById('btn-historico-atualizar');
+const sorteioAvisoRepeticaoEl = document.getElementById('sorteio-aviso-repeticao');
+
+let historicoCache = [];
 
 // Ordem de revelação: do prêmio menor pro maior, guardando a Smart TV pro final
 // (mais suspense). A medalha de cada item reflete a colocação real do prêmio, não
@@ -269,6 +272,8 @@ async function carregarHistoricoSorteios() {
 }
 
 function renderizarHistoricoSorteios(vencedores) {
+  historicoCache = vencedores;
+
   if (!vencedores.length) {
     historicoVazioEl.hidden = false;
     historicoListaEl.hidden = true;
@@ -408,6 +413,13 @@ btnSorteio.addEventListener('click', () => {
     const qtdPremios = Math.min(PREMIOS.length, pool.length);
     sorteioIntroTextoEl.textContent = `${pool.length} número${pool.length > 1 ? 's' : ''} pago${pool.length > 1 ? 's' : ''} concorrendo. Vamos sortear ${qtdPremios} prêmio${qtdPremios > 1 ? 's' : ''}.`;
     btnSorteioIniciar.hidden = false;
+  }
+
+  if (historicoCache.length > 0) {
+    sorteioAvisoRepeticaoEl.hidden = false;
+    sorteioAvisoRepeticaoEl.textContent = `⚠️ Atenção: já existe${historicoCache.length > 1 ? 'm' : ''} ${historicoCache.length} vencedor${historicoCache.length > 1 ? 'es' : ''} registrado${historicoCache.length > 1 ? 's' : ''} no histórico. Sortear novamente vai gerar NOVOS vencedores (o registro antigo continua salvo no histórico).`;
+  } else {
+    sorteioAvisoRepeticaoEl.hidden = true;
   }
 
   modalSorteio.showModal();
