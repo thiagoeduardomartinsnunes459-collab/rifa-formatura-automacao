@@ -404,7 +404,7 @@ function executarSorteioAtual() {
   sorteioNumeroEl.classList.add('girando');
   sorteioNomeEl.classList.add('girando');
 
-  const duracaoMs = 2200;
+  const duracaoMs = 5000;
   const inicio = performance.now();
 
   function ciclo(agora) {
