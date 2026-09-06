@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Painel da Rifa — Compradores</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%93%8B%3C/text%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="admin.css" />
+</head>
+<body>
+  <dialog id="modal-login">
+    <form id="form-login" method="dialog">
+      <span class="login-badge">🔒 Acesso restrito</span>
+      <h1>Painel da Rifa</h1>
+      <p class="login-sub">Digite o código de acesso pra ver os compradores.</p>
+      <label>
+        Código de acesso
+        <input type="password" id="input-token" required autocomplete="off" placeholder="••••••••••••" />
+      </label>
+      <button type="submit" id="btn-entrar">Entrar</button>
+      <p id="login-erro" class="erro" role="alert"></p>
+    </form>
+  </dialog>
+
+  <div id="painel" hidden>
+    <header class="painel-header">
+      <div>
+        <span class="header-badge">🎓 Formatura em Direito</span>
+        <h1>Painel de Compradores</h1>
+      </div>
+      <button type="button" id="btn-sair">Sair</button>
+    </header>
+
+    <section class="stats">
+      <div class="stat-card">
+        <span class="stat-valor" id="stat-compradores">0</span>
+        <span class="stat-label">Compradores</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-valor" id="stat-vendidos">0</span>
+        <span class="stat-label">Números vendidos</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-valor" id="stat-pendentes">0</span>
+        <span class="stat-label">Aguardando pagamento</span>
+      </div>
+      <div class="stat-card destaque">
+        <span class="stat-valor" id="stat-arrecadado">R$ 0,00</span>
+        <span class="stat-label">Arrecadado</span>
+      </div>
+    </section>
+
+    <section class="controles">
+      <input type="search" id="busca" placeholder="Buscar por nome, WhatsApp ou número..." aria-label="Buscar comprador" />
+      <div class="filtros" role="group" aria-label="Filtrar por status">
+        <button type="button" class="filtro-btn ativo" data-filtro="todos">Todos</button>
+        <button type="button" class="filtro-btn" data-filtro="pago">Pagos</button>
+        <button type="button" class="filtro-btn" data-filtro="pendente">Pendentes</button>
+      </div>
+      <button type="button" id="btn-atualizar" title="Atualizar lista">🔄 Atualizar</button>
+    </section>
+
+    <main id="lista-compradores" class="lista-compradores">
+      <p class="carregando">Carregando compradores...</p>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="config.js"></script>
+  <script src="admin.js"></script>
+</body>
+</html>

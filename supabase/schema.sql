@@ -183,3 +183,45 @@ as $$
 $$;
 
 grant execute on function status_reserva(uuid) to anon;
+
+-- Painel administrativo (landing/admin.html): lista todos os compradores pra cliente
+-- acompanhar quem comprou o quê. RLS bloqueia leitura direta de `reservas` pela chave
+-- anon (exporia nome/whatsapp de todo mundo); esta função exige um token de acesso
+-- guardado em `admin_tokens`, tabela sem nenhuma policy (só SECURITY DEFINER acessa).
+-- O token em si NUNCA é commitado no schema -- é inserido uma vez, manualmente, direto
+-- no SQL Editor do Supabase (mesma lógica do .env: segredo fica fora do git).
+create table if not exists admin_tokens (
+  token text primary key,
+  criado_em timestamptz not null default now()
+);
+
+alter table admin_tokens enable row level security;
+-- Sem policies: nem anon nem authenticated conseguem ler/escrever aqui diretamente.
+
+create or replace function listar_reservas_admin(p_admin_token text)
+returns table(
+  reserva_id uuid,
+  numero smallint,
+  nome text,
+  whatsapp text,
+  status reserva_status,
+  criada_em timestamptz,
+  paga_em timestamptz
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not exists (select 1 from admin_tokens where token = p_admin_token) then
+    raise exception 'nao autorizado';
+  end if;
+
+  return query
+    select r.id, r.numero, r.nome, r.whatsapp, r.status, r.criada_em, r.paga_em
+    from reservas r
+    order by r.criada_em desc;
+end;
+$$;
+
+grant execute on function listar_reservas_admin(text) to anon;
