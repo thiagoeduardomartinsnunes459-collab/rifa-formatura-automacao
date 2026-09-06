@@ -225,3 +225,71 @@ end;
 $$;
 
 grant execute on function listar_reservas_admin(text) to anon;
+
+-- Histórico de sorteios: registra cada vencedor assim que é revelado no painel, pra
+-- não depender do modal ficar aberto -- hoje ele some ao clicar em "Fechar", perdendo
+-- o registro de quem ganhou o quê. Serve de comprovante caso a cliente precise provar
+-- o resultado depois. Mesmo padrão de acesso das outras tabelas sensíveis: RLS ligado,
+-- zero policies, só as funções SECURITY DEFINER abaixo enxergam os dados.
+create table if not exists sorteio_vencedores (
+  id uuid primary key default gen_random_uuid(),
+  premio text not null,
+  numero smallint not null,
+  nome text not null,
+  whatsapp text,
+  sorteado_em timestamptz not null default now()
+);
+
+alter table sorteio_vencedores enable row level security;
+-- Sem policies: nem anon nem authenticated conseguem ler/escrever aqui diretamente.
+
+create or replace function registrar_vencedor_sorteio(
+  p_admin_token text,
+  p_premio text,
+  p_numero smallint,
+  p_nome text,
+  p_whatsapp text
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not exists (select 1 from admin_tokens where token = p_admin_token) then
+    raise exception 'nao autorizado';
+  end if;
+
+  insert into sorteio_vencedores (premio, numero, nome, whatsapp)
+  values (p_premio, p_numero, p_nome, p_whatsapp);
+end;
+$$;
+
+grant execute on function registrar_vencedor_sorteio(text, text, smallint, text, text) to anon;
+
+create or replace function listar_vencedores_sorteio(p_admin_token text)
+returns table(
+  id uuid,
+  premio text,
+  numero smallint,
+  nome text,
+  whatsapp text,
+  sorteado_em timestamptz
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not exists (select 1 from admin_tokens where token = p_admin_token) then
+    raise exception 'nao autorizado';
+  end if;
+
+  return query
+    select v.id, v.premio, v.numero, v.nome, v.whatsapp, v.sorteado_em
+    from sorteio_vencedores v
+    order by v.sorteado_em desc;
+end;
+$$;
+
+grant execute on function listar_vencedores_sorteio(text) to anon;

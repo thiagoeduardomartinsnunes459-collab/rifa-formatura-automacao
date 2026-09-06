@@ -243,6 +243,101 @@ dialog::backdrop {
   align-items: center;
 }
 
+.historico {
+  background: linear-gradient(180deg, var(--cor-fundo-card), #121218);
+  border: 1px solid var(--cor-borda);
+  border-top: 2px solid var(--cor-secundaria-forte);
+  border-radius: 0.9rem;
+  padding: 1.1rem 1.3rem;
+  margin-bottom: 1.5rem;
+}
+
+.historico-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.6rem;
+}
+
+.historico-header h2 {
+  margin: 0;
+  font-family: var(--fonte-titulo);
+  font-size: 1.1rem;
+  color: var(--cor-secundaria);
+}
+
+#btn-historico-atualizar {
+  border: 1px solid var(--cor-borda);
+  background: transparent;
+  color: var(--cor-texto-suave);
+  border-radius: 0.5rem;
+  padding: 0.35rem 0.6rem;
+  cursor: pointer;
+  line-height: 1;
+}
+
+#btn-historico-atualizar:hover {
+  border-color: var(--cor-secundaria-forte);
+  color: var(--cor-texto);
+}
+
+.historico-vazio {
+  margin: 0;
+  color: var(--cor-texto-suave);
+  font-size: 0.85rem;
+}
+
+.historico-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  max-height: 20rem;
+  overflow-y: auto;
+}
+
+.historico-item {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 0.7rem 0.9rem;
+  border-radius: 0.7rem;
+  background: var(--cor-fundo);
+  border: 1px solid var(--cor-borda);
+}
+
+.historico-item-medalha {
+  font-size: 1.4rem;
+  flex-shrink: 0;
+}
+
+.historico-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.historico-item-info strong {
+  font-size: 0.95rem;
+}
+
+.historico-item-info span {
+  font-size: 0.78rem;
+  color: var(--cor-texto-suave);
+}
+
+.historico-item-data {
+  font-size: 0.72rem;
+  color: var(--cor-texto-suave);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
 .ultima-atualizacao {
   margin: 0 0 1.5rem;
   font-size: 0.75rem;

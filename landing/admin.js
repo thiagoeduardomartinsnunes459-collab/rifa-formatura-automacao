@@ -38,6 +38,10 @@ const sorteioListaVencedoresEl = document.getElementById('sorteio-lista-vencedor
 const btnSorteioFechar = document.getElementById('btn-sorteio-fechar');
 const btnSorteioProximo = document.getElementById('btn-sorteio-proximo');
 
+const historicoVazioEl = document.getElementById('historico-vazio');
+const historicoListaEl = document.getElementById('historico-lista');
+const btnHistoricoAtualizar = document.getElementById('btn-historico-atualizar');
+
 // Ordem de revelação: do prêmio menor pro maior, guardando a Smart TV pro final
 // (mais suspense). A medalha de cada item reflete a colocação real do prêmio, não
 // a ordem em que é sorteado.
@@ -201,6 +205,7 @@ async function carregarPainel(silencioso = false) {
     reservasCache = await buscarReservas(token);
     atualizarStats(reservasCache);
     renderizarLista();
+    carregarHistoricoSorteios();
     modalLogin.close();
     painelEl.hidden = false;
     ultimaAtualizacaoEl.textContent = `Atualizado automaticamente às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
@@ -246,6 +251,71 @@ btnSair.addEventListener('click', () => {
 });
 
 btnAtualizar.addEventListener('click', () => carregarPainel());
+
+// Histórico de sorteios: fica gravado no banco (tabela sorteio_vencedores) assim que
+// cada prêmio é revelado, pra sobreviver ao fechar do modal -- serve de comprovante
+// de quem ganhou o quê caso a cliente precise checar depois.
+async function carregarHistoricoSorteios() {
+  const token = localStorage.getItem(TOKEN_STORAGE_KEY);
+  if (!token) return;
+
+  try {
+    const { data, error } = await supabaseClient.rpc('listar_vencedores_sorteio', { p_admin_token: token });
+    if (error) throw error;
+    renderizarHistoricoSorteios(data || []);
+  } catch (error) {
+    console.error('Falha ao carregar histórico de sorteios', { error });
+  }
+}
+
+function renderizarHistoricoSorteios(vencedores) {
+  if (!vencedores.length) {
+    historicoVazioEl.hidden = false;
+    historicoListaEl.hidden = true;
+    historicoListaEl.replaceChildren();
+    return;
+  }
+
+  historicoVazioEl.hidden = true;
+  historicoListaEl.hidden = false;
+  historicoListaEl.replaceChildren();
+
+  for (const v of vencedores) {
+    const premioInfo = PREMIOS.find((p) => p.titulo === v.premio);
+    const item = document.createElement('li');
+    item.className = 'historico-item';
+    item.innerHTML = `
+      <span class="historico-item-medalha">${premioInfo ? premioInfo.medalha : '🏆'}</span>
+      <div class="historico-item-info">
+        <strong>${v.nome}</strong>
+        <span>Número ${formatarNumero(v.numero)} · ${v.premio} · final ${ultimosDigitosTelefone(v.whatsapp)}</span>
+      </div>
+      <span class="historico-item-data">${formatarData(v.sorteado_em)}</span>
+    `;
+    historicoListaEl.appendChild(item);
+  }
+}
+
+async function registrarVencedorSorteio(premioTitulo, vencedor) {
+  const token = localStorage.getItem(TOKEN_STORAGE_KEY);
+  if (!token) return;
+
+  try {
+    const { error } = await supabaseClient.rpc('registrar_vencedor_sorteio', {
+      p_admin_token: token,
+      p_premio: premioTitulo,
+      p_numero: vencedor.numero,
+      p_nome: vencedor.nome,
+      p_whatsapp: vencedor.whatsapp || null,
+    });
+    if (error) throw error;
+    await carregarHistoricoSorteios();
+  } catch (error) {
+    console.error('Falha ao registrar vencedor no histórico', { error });
+  }
+}
+
+btnHistoricoAtualizar.addEventListener('click', () => carregarHistoricoSorteios());
 
 buscaEl.addEventListener('input', renderizarLista);
 
@@ -422,6 +492,7 @@ function executarSorteioAtual() {
       sorteioNomeEl.textContent = vencedor.nome;
       sorteioTelefoneEl.textContent = `📱 final ${ultimosDigitosTelefone(vencedor.whatsapp)}`;
       dispararConfeteSorteio();
+      registrarVencedorSorteio(PREMIOS[indice].titulo, vencedor);
       sorteioEstado.indice += 1;
 
       const haProximoPremio = sorteioEstado.indice < sorteados.length;
