@@ -1,0 +1,5 @@
+{
+  "rewrites": [
+    { "source": "/api/efi/:path*", "destination": "/api/efi-handler?path=:path*" }
+  ]
+}

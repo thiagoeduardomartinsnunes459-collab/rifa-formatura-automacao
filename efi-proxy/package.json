@@ -1,0 +1,13 @@
+{
+  "name": "efi-proxy",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Functions auxiliares serverless do projeto Rifa Formatura: proxy mTLS pra Efi (Plano B do bloqueio de IP) e disparo de push notification pro painel administrativo.",
+  "scripts": {
+    "dev": "vercel dev"
+  },
+  "dependencies": {
+    "web-push": "^3.6.7"
+  }
+}

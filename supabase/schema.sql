@@ -293,3 +293,43 @@ end;
 $$;
 
 grant execute on function listar_vencedores_sorteio(text) to anon;
+
+-- Inscrições de push notification (painel administrativo) -- permite notificar a
+-- cliente no celular, mesmo com a tela bloqueada, a cada pagamento confirmado.
+-- Mesmo padrão de acesso das outras tabelas sensíveis: RLS ligado, zero policies
+-- públicas, só a function abaixo (gated por admin_token) grava. Quem LÊ esta tabela
+-- pra disparar as notificações é a function push-notify (Vercel), usando a
+-- service_role key -- nunca a chave anon, então não precisa de function de leitura aqui.
+create table if not exists push_subscriptions (
+  endpoint text primary key,
+  p256dh text not null,
+  auth text not null,
+  criada_em timestamptz not null default now()
+);
+
+alter table push_subscriptions enable row level security;
+-- Sem policies: nem anon nem authenticated leem/escrevem direto aqui.
+
+create or replace function salvar_push_subscription(
+  p_admin_token text,
+  p_endpoint text,
+  p_p256dh text,
+  p_auth text
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not exists (select 1 from admin_tokens where token = p_admin_token) then
+    raise exception 'nao autorizado';
+  end if;
+
+  insert into push_subscriptions (endpoint, p256dh, auth)
+  values (p_endpoint, p_p256dh, p_auth)
+  on conflict (endpoint) do update set p256dh = excluded.p256dh, auth = excluded.auth;
+end;
+$$;
+
+grant execute on function salvar_push_subscription(text, text, text, text) to anon;

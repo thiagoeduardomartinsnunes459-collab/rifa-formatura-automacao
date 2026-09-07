@@ -16,4 +16,7 @@ const CONFIG = {
   // cliente (Nubank), a mesma cadastrada na conta Efí como chave de recebimento.
   PIX_CHAVE_FALLBACK: '55997331063',
   WHATSAPP_FALLBACK: '5555997331063',
+  // Chave pública VAPID (não é secreta -- a privada fica só no servidor de push).
+  // Usada pelo painel administrativo pra ativar notificações push.
+  PUSH_VAPID_PUBLIC_KEY: 'BCYQWxu0Zw-QJlc-CsKpv_PQcf7VlMLi9QYqsI39NY-9RCF4yQTMGIF1DVa-PNVujrVnGAhrw2S9BGKXYc-T0Dg',
 };

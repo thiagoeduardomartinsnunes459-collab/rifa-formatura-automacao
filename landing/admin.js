@@ -10,6 +10,7 @@ const loginErroEl = document.getElementById('login-erro');
 const btnEntrar = document.getElementById('btn-entrar');
 const painelEl = document.getElementById('painel');
 const btnSair = document.getElementById('btn-sair');
+const btnNotificacoes = document.getElementById('btn-notificacoes');
 const listaEl = document.getElementById('lista-compradores');
 const ultimaAtualizacaoEl = document.getElementById('ultima-atualizacao');
 const buscaEl = document.getElementById('busca');
@@ -254,6 +255,81 @@ btnSair.addEventListener('click', () => {
 });
 
 btnAtualizar.addEventListener('click', () => carregarPainel());
+
+// Push notification: avisa a cliente no celular (mesmo bloqueado) a cada venda
+// confirmada. Precisa de gesto do usuário pro navegador liberar o pedido de
+// permissão -- por isso é um botão, não algo automático ao carregar a página.
+function urlBase64ToUint8Array(base64) {
+  const padding = '='.repeat((4 - (base64.length % 4)) % 4);
+  const base64Segura = (base64 + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const bruto = atob(base64Segura);
+  return Uint8Array.from([...bruto].map((c) => c.charCodeAt(0)));
+}
+
+async function ativarNotificacoes() {
+  const token = localStorage.getItem(TOKEN_STORAGE_KEY);
+  if (!token) return;
+
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    alert('Esse navegador não suporta notificações push.');
+    return;
+  }
+
+  btnNotificacoes.disabled = true;
+  btnNotificacoes.textContent = 'Ativando...';
+
+  try {
+    const permissao = await Notification.requestPermission();
+    if (permissao !== 'granted') {
+      alert('Permissão de notificação negada. Pra ativar depois, libere nas configurações do navegador.');
+      return;
+    }
+
+    const registro = await navigator.serviceWorker.register('sw.js');
+    await navigator.serviceWorker.ready;
+
+    let inscricao = await registro.pushManager.getSubscription();
+    if (!inscricao) {
+      inscricao = await registro.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(CONFIG.PUSH_VAPID_PUBLIC_KEY),
+      });
+    }
+
+    const inscricaoJson = inscricao.toJSON();
+    const { error } = await supabaseClient.rpc('salvar_push_subscription', {
+      p_admin_token: token,
+      p_endpoint: inscricaoJson.endpoint,
+      p_p256dh: inscricaoJson.keys.p256dh,
+      p_auth: inscricaoJson.keys.auth,
+    });
+    if (error) throw error;
+
+    btnNotificacoes.textContent = '🔔 Notificações ativadas';
+  } catch (error) {
+    console.error('Falha ao ativar notificações', { error });
+    alert('Não foi possível ativar as notificações. Tenta de novo em alguns segundos.');
+    btnNotificacoes.disabled = false;
+    btnNotificacoes.textContent = '🔔 Ativar notificações';
+  }
+}
+
+btnNotificacoes.addEventListener('click', ativarNotificacoes);
+
+// Se já tem inscrição salva neste navegador, mostra o botão como "ativado" sem
+// precisar clicar de novo.
+(async function verificarNotificacoesJaAtivas() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+  try {
+    const registro = await navigator.serviceWorker.getRegistration('sw.js');
+    const inscricao = registro && (await registro.pushManager.getSubscription());
+    if (inscricao) {
+      btnNotificacoes.textContent = '🔔 Notificações ativadas';
+    }
+  } catch {
+    // silencioso -- não é crítico, o botão continua no estado padrão
+  }
+})();
 
 // Histórico de sorteios: fica gravado no banco (tabela sorteio_vencedores) assim que
 // cada prêmio é revelado, pra sobreviver ao fechar do modal -- serve de comprovante
