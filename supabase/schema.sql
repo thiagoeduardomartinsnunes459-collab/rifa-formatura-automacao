@@ -333,3 +333,75 @@ end;
 $$;
 
 grant execute on function salvar_push_subscription(text, text, text, text) to anon;
+
+-- Registro manual de compra (painel administrativo): usado quando o pagamento
+-- acontece fora do fluxo automático (PIX direto, dinheiro, etc.) e a cliente
+-- registra depois. Aceita uma lista explícita de números OU uma quantidade
+-- (sorteia aleatoriamente entre os disponíveis) -- nunca os dois ao mesmo tempo.
+-- Mesmo padrão de acesso das outras funções administrativas: gated por admin_token.
+create or replace function registrar_compra_manual(
+  p_admin_token text,
+  p_nome text,
+  p_whatsapp text,
+  p_quantidade int default null,
+  p_numeros smallint[] default null,
+  p_valor_centavos int default 1000
+)
+returns table(numero smallint)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_numeros smallint[];
+begin
+  if not exists (select 1 from admin_tokens where token = p_admin_token) then
+    raise exception 'nao autorizado';
+  end if;
+
+  if p_nome is null or btrim(p_nome) = '' then
+    raise exception 'nome e obrigatorio';
+  end if;
+
+  if p_numeros is not null and array_length(p_numeros, 1) > 0 then
+    if exists (
+      select 1 from numeros n
+      where n.numero = any(p_numeros) and n.status <> 'disponivel'
+    ) then
+      raise exception 'um ou mais numeros informados nao estao disponiveis';
+    end if;
+    v_numeros := p_numeros;
+  else
+    if p_quantidade is null or p_quantidade < 1 then
+      raise exception 'informe p_quantidade ou p_numeros';
+    end if;
+
+    select array_agg(n.numero) into v_numeros
+    from (
+      select n.numero from numeros n
+      where n.status = 'disponivel'
+      order by random()
+      limit p_quantidade
+    ) n;
+
+    if v_numeros is null or array_length(v_numeros, 1) < p_quantidade then
+      raise exception 'nao ha numeros disponiveis suficientes';
+    end if;
+  end if;
+
+  return query
+  with inseridos as (
+    insert into reservas (numero, nome, whatsapp, cpf, status, valor_centavos, expira_em, paga_em)
+    select u.numero, p_nome, p_whatsapp, '00000000000', 'paga', p_valor_centavos, now(), now()
+    from unnest(v_numeros) as u(numero)
+    returning id, reservas.numero as numero
+  )
+  update numeros n
+  set status = 'pago', reserva_id = i.id, updated_at = now()
+  from inseridos i
+  where n.numero = i.numero
+  returning n.numero;
+end;
+$$;
+
+grant execute on function registrar_compra_manual(text, text, text, int, smallint[], int) to anon;

@@ -175,6 +175,101 @@ dialog::backdrop {
   color: var(--cor-texto);
 }
 
+.btn-manual {
+  padding: 0.55rem 1.1rem;
+  border-radius: 0.5rem;
+  border: 1px solid rgba(212, 175, 55, 0.4);
+  background: rgba(229, 193, 88, 0.1);
+  color: var(--cor-secundaria);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-manual:hover {
+  border-color: var(--cor-secundaria-forte);
+  filter: brightness(1.1);
+}
+
+#modal-manual label:not(.manual-modo-opcao) {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 500;
+  margin-bottom: 1.1rem;
+}
+
+#modal-manual label[hidden] {
+  display: none;
+}
+
+#modal-manual input[type="text"],
+#modal-manual input[type="tel"],
+#modal-manual input[type="number"] {
+  width: 100%;
+  padding: 0.65rem 0.7rem;
+  margin-top: 0.35rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--cor-borda);
+  background: var(--cor-fundo);
+  color: var(--cor-texto);
+  font-family: inherit;
+  font-size: 0.95rem;
+}
+
+#modal-manual input:focus {
+  outline: none;
+  border-color: var(--cor-destaque-forte);
+}
+
+.manual-modo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1.1rem;
+  font-size: 0.85rem;
+}
+
+.manual-modo-opcao {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+.modal-acoes {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  margin-top: 0.25rem;
+}
+
+.modal-acoes button {
+  padding: 0.6rem 1.1rem;
+  border-radius: 0.5rem;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  font-family: inherit;
+  font-size: 0.92rem;
+}
+
+#btn-manual-cancelar {
+  background: transparent;
+  color: var(--cor-texto-suave);
+  border: 1px solid var(--cor-borda) !important;
+}
+
+#btn-manual-confirmar {
+  background: linear-gradient(135deg, var(--cor-destaque), var(--cor-destaque-forte));
+  color: #fff;
+}
+
+.manual-sucesso {
+  color: var(--cor-sucesso);
+  font-size: 0.85rem;
+  margin: 0.75rem 0 0;
+  font-weight: 600;
+}
+
 .btn-sorteio {
   padding: 0.85rem 1.6rem;
   border: none;

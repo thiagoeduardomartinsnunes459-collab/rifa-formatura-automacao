@@ -34,6 +34,7 @@
       </div>
       <div class="painel-header-acoes">
         <button type="button" id="btn-notificacoes">🔔 Ativar notificações</button>
+        <button type="button" id="btn-manual" class="btn-manual">➕ Adicionar manualmente</button>
         <button type="button" id="btn-sorteio" class="btn-sorteio">🎉 Sortear Ganhadores</button>
         <button type="button" id="btn-sair">Sair</button>
       </div>
@@ -82,6 +83,50 @@
       <p class="carregando">Carregando compradores...</p>
     </main>
   </div>
+
+  <dialog id="modal-manual">
+    <form id="form-manual" method="dialog">
+      <span class="login-badge">➕ Registro manual</span>
+      <h1>Adicionar compra manual</h1>
+      <p class="login-sub">Pra pagamentos combinados fora do fluxo automático (PIX direto, dinheiro etc). Marca os números como vendidos na hora.</p>
+      <label>
+        Nome completo
+        <input type="text" id="manual-nome" required maxlength="120" autocomplete="off" />
+      </label>
+      <label>
+        WhatsApp (com DDD)
+        <input type="tel" id="manual-whatsapp" maxlength="20" placeholder="53999998888" autocomplete="off" />
+      </label>
+      <div class="manual-modo" role="group" aria-label="Como escolher os números">
+        <label class="manual-modo-opcao">
+          <input type="radio" name="manual-modo" value="aleatorio" checked />
+          Sortear números aleatórios disponíveis
+        </label>
+        <label class="manual-modo-opcao">
+          <input type="radio" name="manual-modo" value="especifico" />
+          Escolher números específicos
+        </label>
+      </div>
+      <label id="manual-campo-quantidade">
+        Quantidade de números
+        <input type="number" id="manual-quantidade" min="1" max="1000" value="1" />
+      </label>
+      <label id="manual-campo-numeros" hidden>
+        Números (separados por vírgula)
+        <input type="text" id="manual-numeros" placeholder="0012, 0345, 0899" autocomplete="off" />
+      </label>
+      <label>
+        Valor por número (R$)
+        <input type="number" id="manual-valor" min="0" step="0.01" value="10.00" />
+      </label>
+      <div class="modal-acoes">
+        <button type="button" id="btn-manual-cancelar">Cancelar</button>
+        <button type="submit" id="btn-manual-confirmar">Registrar compra</button>
+      </div>
+      <p id="manual-erro" class="erro" role="alert"></p>
+      <p id="manual-sucesso" class="manual-sucesso" role="status" hidden></p>
+    </form>
+  </dialog>
 
   <dialog id="modal-sorteio">
     <div id="sorteio-intro">
