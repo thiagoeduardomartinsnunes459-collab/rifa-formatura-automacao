@@ -221,22 +221,29 @@ body {
 .btn-sorte:focus-visible { outline: 2px solid var(--cor-secundaria-forte); outline-offset: 2px; }
 
 .btn-multipla {
-  padding: 0.55rem 1rem;
-  border-radius: 0.6rem;
-  border: 1px solid var(--cor-borda);
-  background: var(--cor-fundo-card);
-  color: var(--cor-texto-suave);
+  padding: 0.85rem 1.6rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--cor-destaque-forte);
+  background: linear-gradient(135deg, var(--cor-destaque-forte), var(--cor-destaque));
+  color: #fff;
   font-family: inherit;
-  font-size: 0.82rem;
-  font-weight: 600;
+  font-size: 1rem;
+  font-weight: 700;
   cursor: pointer;
   white-space: nowrap;
+  animation: pulso-multipla 1.8s ease-in-out infinite;
 }
-.btn-multipla:hover { color: var(--cor-texto); border-color: var(--cor-secundaria-forte); }
+.btn-multipla:hover { filter: brightness(1.12); }
 .btn-multipla.ativo {
+  animation: none;
   background: rgba(229, 193, 88, 0.14);
-  border-color: var(--cor-secundaria-forte);
+  border: 1px solid var(--cor-secundaria-forte);
   color: var(--cor-secundaria);
+}
+
+@keyframes pulso-multipla {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(244, 114, 182, 0.55); }
+  50% { box-shadow: 0 0 0 12px rgba(244, 114, 182, 0); }
 }
 
 .blocos-jump {
