@@ -165,16 +165,39 @@ funções `reservar_pedido`, `vincular_txid_efi_pedido`, `pedido_id_por_txid`,
 | # | Módulo | Configuração |
 |---|--------|--------------|
 | 1 | **Webhooks → Custom webhook** | Body esperado: `{ numeros: [11, 12], nome, whatsapp, cpf }` |
-| 2 | **HTTP → Make a request** | `POST {SUPABASE_URL}/rest/v1/rpc/reservar_pedido`<br>Headers: `apikey: {SERVICE_ROLE_KEY}`, `Authorization: Bearer {SERVICE_ROLE_KEY}`, `Content-Type: application/json`<br>Body: `{"p_numeros": {{1.numeros}}, "p_nome": "{{1.nome}}", "p_whatsapp": "{{1.whatsapp}}", "p_cpf": "{{1.cpf}}", "p_minutos": 15}` |
-| 3 | **Router** | Ramo "Reserva OK": `{{2.sucesso}} = true` → passo 4. Ramo "Falhou": `{{2.sucesso}} = false` → passo 5. |
+| 2 | **HTTP → Make a request** | `POST {SUPABASE_URL}/rest/v1/rpc/reservar_pedido`<br>Headers: `apikey: {SERVICE_ROLE_KEY}`, `Authorization: Bearer {SERVICE_ROLE_KEY}`<br>**Body input method: Data structure** (não "JSON string" — ver nota abaixo), campo `p_numeros` com "Map" ligado apontando pra `{{1.numeros}}`, demais campos mapeados normalmente (`p_nome`, `p_whatsapp`, `p_cpf`, `p_minutos: 15`). |
+| 3 | **Router** | Ramo "Reserva OK": `{{2.data[1].sucesso}} = true` → passo 4. Ramo "Falhou": `{{2.data[1].sucesso}} = false` → passo 5. |
 | 4 | **HTTP → Make a request** (Ramo OK) | `POST {EFI_PROXY_URL}/api/efi/oauth/token`, auth Basic (credencial salva "Efi Producao", a mesma reusada do Scenario 1) |
-| 6 | **HTTP → Make a request** (Ramo OK) | `POST {EFI_PROXY_URL}/api/efi/v2/cob`<br>Headers: `Authorization: Bearer {{4.data.access_token}}`, `Content-Type: application/json`<br>Body: `{"calendario": {"expiracao": 900}, "devedor": {"cpf": "{{1.cpf}}", "nome": "{{1.nome}}"}, "valor": {"original": "{{2.valor_original}}"}, "chave": "{EFI_CHAVE_PIX}", "solicitacaoPagador": "Rifa Formatura - {{2.quantidade}} numeros"}`<br>**Nota:** `valor_original` (ex: `"30.00"`) e `quantidade` vêm prontos do retorno de `reservar_pedido` — evita montar `formatNumber(length(...) * 10; ...)` inline no Make, que o parser de pills do editor corrompe em expressões com função aninhada. |
-| 7 | **HTTP → Make a request** (Ramo OK) | `POST {SUPABASE_URL}/rest/v1/rpc/vincular_txid_efi_pedido`<br>Body: `{"p_pedido_id": "{{2.pedido_id}}", "p_txid": "{{6.txid}}"}` |
-| 8 | **Webhooks → Webhook response** (Ramo OK) | Status 200. Body: `{"sucesso": true, "pedido_id": "{{2.pedido_id}}", "copia_cola": "{{6.pixCopiaECola}}"}` |
-| 5 | **Webhooks → Webhook response** (Ramo Falhou) | Status 200. Body: `{"sucesso": false, "motivo": "{{2.motivo}}", "numeros_indisponiveis": {{2.numeros_indisponiveis}}}` |
+| 6 | **HTTP → Make a request** (Ramo OK) | `POST {EFI_PROXY_URL}/api/efi/v2/cob`<br>Headers: `Authorization: Bearer {{4.data.access_token}}`, `Content-Type: application/json`<br>Body (JSON string): `{"calendario": {"expiracao": 900}, "devedor": {"cpf": "{{1.cpf}}", "nome": "{{1.nome}}"}, "valor": {"original": "{{2.data[1].valor_original}}"}, "chave": "{EFI_CHAVE_PIX}", "solicitacaoPagador": "Rifa Formatura - {{2.data[1].quantidade}} numeros"}`<br>**Nota:** `valor_original` (ex: `"30.00"`) e `quantidade` vêm prontos do retorno de `reservar_pedido` — evita montar `formatNumber(length(...) * 10; ...)` inline no Make, que o parser de pills do editor corrompe em expressões com função aninhada. |
+| 7 | **HTTP → Make a request** (Ramo OK) | `POST {SUPABASE_URL}/rest/v1/rpc/vincular_txid_efi_pedido`<br>Body: `{"p_pedido_id": "{{2.data[1].pedido_id}}", "p_txid": "{{6.data.txid}}"}` |
+| 8 | **Webhooks → Webhook response** (Ramo OK) | Status 200. Body: `{"sucesso": true, "pedido_id": "{{2.data[1].pedido_id}}", "copia_cola": "{{6.data.pixCopiaECola}}"}` |
+| 5 | **Webhooks → Webhook response** (Ramo Falhou) | Status 200. Body: `{"sucesso": false, "motivo": "{{2.data[1].motivo}}", "numeros_indisponiveis": {{2.data[1].numeros_indisponiveis}}}` |
 
 (Numeração dos módulos reflete a ordem real de criação no Make, não a ordem lógica —
 o Router ficou como módulo 3, o ramo "Falhou" foi montado antes do ramo "OK".)
+
+**Duas pegadinhas descobertas testando o cenário de ponta a ponta (validado com PIX
+real gerado, 08/09):**
+
+1. **Array direto num corpo JSON de texto não funciona.** Referenciar
+   `{{1.numeros}}` (um array vindo do webhook) dentro de um `Body input method:
+   JSON string` produz uma serialização que quebra o JSON (o Make junta os valores
+   sem colchetes de forma inconsistente). A correção foi trocar o módulo 2 pra
+   `Body input method: Data structure`, com o campo array mapeado via toggle "Map"
+   apontando direto pro `{{1.numeros}}` — isso deixa o Make serializar o array
+   nativamente, sem ambiguidade.
+2. **Toda resposta de módulo HTTP com `Parse response: Yes` fica embaixo de
+   `.data`.** Se a API responde um **objeto** (Efí `/oauth/token`, Efí `/v2/cob`),
+   o caminho é `{{N.data.campo}}` (sem índice — mesmo padrão já usado no Scenario 1
+   pra pegar o `access_token`). Se a API responde um **array** (qualquer função
+   Postgres com `returns table(...)`, como `reservar_pedido`), o caminho é
+   `{{N.data[1].campo}}` (a função sempre devolve uma linha só aqui, por isso
+   sempre `[1]`). Usar `{{N.campo}}` direto (sem `.data`) faz o Make aceitar o pill
+   sem reclamar no editor, mas ele resolve pra vazio em tempo de execução — o erro
+   só aparece rodando de verdade (o Router não bate em nenhum dos dois ramos, ou o
+   corpo da próxima chamada vem com campo vazio). Pra descobrir o caminho certo de
+   qualquer módulo novo: rodar uma vez, abrir o log de execução → clicar no módulo
+   → "Details" → "Output" e ler a árvore real ali, em vez de adivinhar.
 
 **Confirmação de pagamento de pedidos:** não criamos um Scenario 5 separado pra
 isso. `efi-proxy/api/reconcile.js` (rede de segurança já existente, rodando via
