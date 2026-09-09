@@ -54,6 +54,7 @@
     <div class="grid-nav">
       <input type="search" id="busca-numero" placeholder="Buscar número (ex: 0042)" aria-label="Buscar número" />
       <button type="button" class="btn-sorte" id="btn-sorte">🎲 Número da sorte</button>
+      <button type="button" class="btn-multipla" id="btn-modo-multiplo">🧺 Selecionar vários números</button>
     </div>
     <div class="blocos-jump" id="blocos-jump" aria-label="Ir para bloco de números"></div>
     <div class="grid-wrapper">
@@ -63,9 +64,22 @@
 
   <div id="toast" role="status" aria-live="polite"></div>
 
+  <div id="barra-selecao" hidden>
+    <span id="barra-selecao-texto"></span>
+    <div class="barra-selecao-acoes">
+      <button type="button" id="btn-limpar-selecao">Cancelar seleção</button>
+      <button type="button" id="btn-continuar-selecao">Continuar</button>
+    </div>
+  </div>
+
   <dialog id="modal-compra">
     <form id="form-compra" method="dialog">
-      <h2>Número <span id="modal-numero"></span></h2>
+      <h2 id="modal-titulo-numero">Número <span id="modal-numero"></span></h2>
+      <div id="modal-pedido-resumo" hidden>
+        <h2>Você escolheu <span id="modal-pedido-qtd"></span> números</h2>
+        <div id="modal-pedido-lista" class="modal-pedido-lista"></div>
+        <p class="modal-pedido-total">Total: <strong id="modal-pedido-total"></strong></p>
+      </div>
       <label>
         Nome completo
         <input type="text" id="input-nome" required maxlength="120" autocomplete="name" />
@@ -78,7 +92,7 @@
         CPF
         <input type="text" id="input-cpf" required maxlength="14" placeholder="000.000.000-00" inputmode="numeric" autocomplete="off" />
       </label>
-      <p class="aviso">A cobrança PIX exige seu CPF. Você terá 15 minutos para pagar antes do número voltar a ficar disponível.</p>
+      <p class="aviso" id="modal-aviso-expiracao">A cobrança PIX exige seu CPF. Você terá 15 minutos para pagar antes do número voltar a ficar disponível.</p>
       <div class="modal-acoes">
         <button type="button" id="btn-cancelar">Cancelar</button>
         <button type="submit" id="btn-gerar-pix">Gerar cobrança PIX</button>

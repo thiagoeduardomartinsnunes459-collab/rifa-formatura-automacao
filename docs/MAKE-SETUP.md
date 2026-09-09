@@ -135,6 +135,52 @@ select confirmar_pagamento(
 );
 ```
 
+Para um pedido (vários números na mesma compra, ver Scenario 4 abaixo), o
+equivalente é:
+
+```sql
+select confirmar_pagamento_pedido(
+  p_gateway_txid := 'manual-' || gen_random_uuid()::text,
+  p_pedido_id := '<uuid do pedido, achar em pedidos where cpf = ''...'' and status = ''pendente''>',
+  p_payload := '{"origem": "pix_manual"}'::jsonb
+);
+```
+
+---
+
+## Scenario 4 — Reservar Pedido + Gerar Cobrança PIX (vários números numa compra)
+
+**Dispara quando:** o comprador seleciona 2+ números no modo "seleção múltipla" da
+landing page e envia o formulário. Cenário novo, separado do Scenario 1 — não
+altera nada do fluxo de número único, que continua chamando o Scenario 1 normalmente.
+
+Pré-requisito: rodar a parte nova de `supabase/schema.sql` (tabela `pedidos` +
+funções `reservar_pedido`, `vincular_txid_efi_pedido`, `pedido_id_por_txid`,
+`confirmar_pagamento_pedido`, `status_pedido`).
+
+| # | Módulo | Configuração |
+|---|--------|--------------|
+| 1 | **Webhooks → Custom webhook** | Cria o webhook, copia a URL gerada pra `config.js` → `MAKE_WEBHOOK_RESERVAR_PEDIDO`. Body esperado: `{ numeros: [11, 12], nome, whatsapp, cpf }` |
+| 2 | **HTTP → Make a request** | `POST {SUPABASE_URL}/rest/v1/rpc/reservar_pedido`<br>Headers: `apikey: {SERVICE_ROLE_KEY}`, `Authorization: Bearer {SERVICE_ROLE_KEY}`, `Content-Type: application/json`<br>Body: `{"p_numeros": {{1.numeros}}, "p_nome": "{{1.nome}}", "p_whatsapp": "{{1.whatsapp}}", "p_cpf": "{{1.cpf}}", "p_minutos": 15}` |
+| 3 | **Router** | Ramo A: `{{2.sucesso}} = false` → passo 8. Ramo B: `{{2.sucesso}} = true` → passo 4. |
+| 4 | **HTTP → Make a request** (Ramo B) | `POST {EFI_PROXY_URL}/api/efi/oauth/token` (mesmo proxy mTLS já usado no Scenario 1 PRODUCAO — não precisa de certificado configurado no Make, o proxy segura o cert) |
+| 5 | **HTTP → Make a request** (Ramo B) | `POST {EFI_PROXY_URL}/api/efi/v2/cob`<br>Body: `{"calendario": {"expiracao": 900}, "devedor": {"cpf": "{{1.cpf}}", "nome": "{{1.nome}}"}, "valor": {"original": "{{formatNumber(length(1.numeros) * 10; 2; "."; "")}}"}, "chave": "{EFI_CHAVE_PIX}", "solicitacaoPagador": "Rifa Formatura - {{length(1.numeros)}} números"}` |
+| 6 | **HTTP → Make a request** (Ramo B) | `POST {SUPABASE_URL}/rest/v1/rpc/vincular_txid_efi_pedido`<br>Body: `{"p_pedido_id": "{{2.pedido_id}}", "p_txid": "{{5.txid}}"}` |
+| 7 | **Webhooks → Webhook response** (Ramo B) | Status 200. Body: `{"sucesso": true, "pedido_id": "{{2.pedido_id}}", "copia_cola": "{{5.pixCopiaECola}}"}` |
+| 8 | **Webhooks → Webhook response** (Ramo A) | Status 200. Body: `{"sucesso": false, "motivo": "{{2.motivo}}", "numeros_indisponiveis": {{2.numeros_indisponiveis}}}` |
+
+**Confirmação de pagamento de pedidos:** não criamos um Scenario 5 separado pra
+isso. `efi-proxy/api/reconcile.js` (rede de segurança já existente, rodando via
+Scheduler no Make a cada 25 min) foi estendido pra também varrer `pedidos`
+pendentes com `efi_txid`, checar `GET /v2/cob/:txid` e chamar
+`confirmar_pagamento_pedido` — mesma lógica de hoje pra número único, agora
+cobrindo pedidos também. O Scenario 2 ("Confirmar Pagamento Efi PRODUCAO", que
+recebe o webhook de pagamento real da Efí) **não foi alterado** — continua só
+confirmando número único. Isso significa que pedidos são confirmados no mesmo
+ritmo que números avulsos já são hoje (a cada ciclo do `reconcile.js`), já que
+o webhook real da Efí segue não entregando eventos de pagamento (ver seção
+"Payment webhook still not delivering" na memória do projeto).
+
 ---
 
 ## Scenario 3 (opcional, não bloqueante) — Auditoria de reservas expiradas

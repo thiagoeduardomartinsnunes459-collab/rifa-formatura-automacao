@@ -4,7 +4,13 @@ const gridEl = document.getElementById('grid');
 const modalCompra = document.getElementById('modal-compra');
 const modalPix = document.getElementById('modal-pix');
 const formCompra = document.getElementById('form-compra');
+const modalTituloNumeroEl = document.getElementById('modal-titulo-numero');
 const modalNumeroEl = document.getElementById('modal-numero');
+const modalPedidoResumoEl = document.getElementById('modal-pedido-resumo');
+const modalPedidoQtdEl = document.getElementById('modal-pedido-qtd');
+const modalPedidoListaEl = document.getElementById('modal-pedido-lista');
+const modalPedidoTotalEl = document.getElementById('modal-pedido-total');
+const modalAvisoExpiracaoEl = document.getElementById('modal-aviso-expiracao');
 const modalErroEl = document.getElementById('modal-erro');
 const inputNome = document.getElementById('input-nome');
 const inputWhatsapp = document.getElementById('input-whatsapp');
@@ -22,10 +28,26 @@ const toastEl = document.getElementById('toast');
 const blocosJumpEl = document.getElementById('blocos-jump');
 const buscaEl = document.getElementById('busca-numero');
 const btnSorteEl = document.getElementById('btn-sorte');
+const btnModoMultiploEl = document.getElementById('btn-modo-multiplo');
+const barraSelecaoEl = document.getElementById('barra-selecao');
+const barraSelecaoTextoEl = document.getElementById('barra-selecao-texto');
+const btnLimparSelecaoEl = document.getElementById('btn-limpar-selecao');
+const btnContinuarSelecaoEl = document.getElementById('btn-continuar-selecao');
 
 let numeroSelecionado = null;
 let pollTimer = null;
 let toastTimer = null;
+
+// Estado do modo "selecionar vários números": carrinho guarda os números
+// escolhidos antes de gerar UMA cobrança PIX cobrindo todos eles (ver
+// reservar_pedido em supabase/schema.sql). Não interfere no fluxo de número
+// único -- que continua chamando abrirModalCompra() diretamente.
+let modoSelecaoMultipla = false;
+const carrinho = new Set();
+
+function formatarMoeda(centavos) {
+  return (centavos / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
 
 function mostrarToast(mensagem) {
   clearTimeout(toastTimer);
@@ -75,7 +97,7 @@ function criarCelula(numero, status, reservadoAte) {
   const efetivo = statusEfetivo(status, reservadoAte);
   const cel = document.createElement('button');
   cel.type = 'button';
-  cel.className = `numero ${efetivo}`;
+  cel.className = `numero ${efetivo}${carrinho.has(numero) ? ' selecionado' : ''}`;
   cel.textContent = formatarNumero(numero);
   cel.dataset.numero = String(numero);
   cel.dataset.status = efetivo;
@@ -91,10 +113,74 @@ function criarCelula(numero, status, reservadoAte) {
       );
       return;
     }
+    if (modoSelecaoMultipla) {
+      alternarSelecao(numero, cel);
+      return;
+    }
     abrirModalCompra(numero);
   });
   return cel;
 }
+
+function alternarSelecao(numero, cel) {
+  if (carrinho.has(numero)) {
+    carrinho.delete(numero);
+    cel.classList.remove('selecionado');
+  } else {
+    carrinho.add(numero);
+    cel.classList.add('selecionado');
+  }
+  atualizarBarraSelecao();
+}
+
+function atualizarBarraSelecao() {
+  // A barra fica fixa no rodapé por cima da grade -- sem esse respiro embaixo,
+  // ela cobre as últimas linhas de números e atrapalha o clique em quem está
+  // perto do fim da tela (mais grave em telas curtas/celular).
+  document.body.classList.toggle('tem-barra-selecao', carrinho.size > 0);
+
+  if (carrinho.size === 0) {
+    barraSelecaoEl.hidden = true;
+    return;
+  }
+  barraSelecaoEl.hidden = false;
+  const total = carrinho.size * CONFIG.PRECO_NUMERO_CENTAVOS;
+  barraSelecaoTextoEl.textContent = `${carrinho.size} número${carrinho.size > 1 ? 's' : ''} selecionado${
+    carrinho.size > 1 ? 's' : ''
+  } — Total: ${formatarMoeda(total)}`;
+}
+
+function limparSelecao() {
+  for (const numero of carrinho) {
+    gridEl.querySelector(`[data-numero="${numero}"]`)?.classList.remove('selecionado');
+  }
+  carrinho.clear();
+  atualizarBarraSelecao();
+}
+
+// Esconde o botão se o webhook do pedido ainda não foi configurado em config.js
+// (evita expor um caminho quebrado enquanto o Scenario 4 do Make não existe ainda).
+if (!CONFIG.MAKE_WEBHOOK_RESERVAR_PEDIDO) {
+  btnModoMultiploEl.hidden = true;
+}
+
+btnModoMultiploEl.addEventListener('click', () => {
+  modoSelecaoMultipla = !modoSelecaoMultipla;
+  btnModoMultiploEl.classList.toggle('ativo', modoSelecaoMultipla);
+  btnModoMultiploEl.textContent = modoSelecaoMultipla
+    ? '✖️ Sair da seleção múltipla'
+    : '🧺 Selecionar vários números';
+  if (!modoSelecaoMultipla) {
+    limparSelecao();
+  }
+});
+
+btnLimparSelecaoEl.addEventListener('click', limparSelecao);
+
+btnContinuarSelecaoEl.addEventListener('click', () => {
+  if (carrinho.size === 0) return;
+  abrirModalCompraPedido();
+});
 
 // Revalida periodicamente os números "reservado" na tela — sem isso, um número que
 // expirou só fica visualmente disponível de novo quando outra pessoa mexe nele.
@@ -189,9 +275,16 @@ function atualizarCelula(numero, status, reservadoAte) {
   const cel = gridEl.querySelector(`[data-numero="${numero}"]`);
   if (!cel) return;
   const efetivo = statusEfetivo(status, reservadoAte);
-  cel.className = `numero ${efetivo}`;
+  const aindaSelecionado = efetivo === 'disponivel' && carrinho.has(numero);
+  cel.className = `numero ${efetivo}${aindaSelecionado ? ' selecionado' : ''}`;
   cel.dataset.status = efetivo;
   cel.dataset.reservadoAte = reservadoAte || '';
+  // Se o número saiu de "disponivel" enquanto estava no carrinho (outra pessoa
+  // reservou primeiro), tira do carrinho pra não deixar o total/seleção mentindo.
+  if (efetivo !== 'disponivel' && carrinho.has(numero)) {
+    carrinho.delete(numero);
+    atualizarBarraSelecao();
+  }
 }
 
 function assinarAtualizacoesEmTempoReal() {
@@ -211,7 +304,28 @@ function assinarAtualizacoesEmTempoReal() {
 
 function abrirModalCompra(numero) {
   numeroSelecionado = numero;
+  modalTituloNumeroEl.hidden = false;
+  modalPedidoResumoEl.hidden = true;
+  modalAvisoExpiracaoEl.textContent =
+    'A cobrança PIX exige seu CPF. Você terá 15 minutos para pagar antes do número voltar a ficar disponível.';
   modalNumeroEl.textContent = formatarNumero(numero);
+  modalErroEl.textContent = '';
+  inputNome.value = '';
+  inputWhatsapp.value = '';
+  inputCpf.value = '';
+  modalCompra.showModal();
+}
+
+function abrirModalCompraPedido() {
+  numeroSelecionado = null;
+  modalTituloNumeroEl.hidden = true;
+  modalPedidoResumoEl.hidden = false;
+  const numeros = [...carrinho].sort((a, b) => a - b);
+  modalPedidoQtdEl.textContent = String(numeros.length);
+  modalPedidoListaEl.textContent = numeros.map(formatarNumero).join(', ');
+  modalPedidoTotalEl.textContent = formatarMoeda(numeros.length * CONFIG.PRECO_NUMERO_CENTAVOS);
+  modalAvisoExpiracaoEl.textContent =
+    'A cobrança PIX exige seu CPF. Você terá 15 minutos para pagar antes dos números voltarem a ficar disponíveis.';
   modalErroEl.textContent = '';
   inputNome.value = '';
   inputWhatsapp.value = '';
@@ -228,6 +342,20 @@ async function reservarNumero(numero, nome, whatsapp, cpf) {
 
   if (!resposta.ok) {
     throw new Error(`Webhook de reserva retornou status ${resposta.status}`);
+  }
+
+  return resposta.json();
+}
+
+async function reservarPedido(numeros, nome, whatsapp, cpf) {
+  const resposta = await fetch(CONFIG.MAKE_WEBHOOK_RESERVAR_PEDIDO, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ numeros, nome, whatsapp, cpf: apenasDigitos(cpf) }),
+  });
+
+  if (!resposta.ok) {
+    throw new Error(`Webhook de reserva de pedido retornou status ${resposta.status}`);
   }
 
   return resposta.json();
@@ -261,9 +389,36 @@ formCompra.addEventListener('submit', async (event) => {
     return;
   }
 
+  const ehPedido = carrinho.size > 0;
   btnGerarPix.disabled = true;
 
   try {
+    if (ehPedido) {
+      const numeros = [...carrinho].sort((a, b) => a - b);
+      const resultado = await reservarPedido(
+        numeros,
+        inputNome.value.trim(),
+        inputWhatsapp.value.trim(),
+        inputCpf.value.trim()
+      );
+
+      if (!resultado.sucesso) {
+        modalErroEl.textContent =
+          resultado.motivo === 'numeros_indisponiveis'
+            ? `Os números ${(resultado.numeros_indisponiveis || [])
+                .map(formatarNumero)
+                .join(', ')} acabaram de ser reservados por outra pessoa. Ajuste sua seleção.`
+            : 'Não foi possível gerar o PIX agora. Tente novamente em instantes.';
+        await carregarGrid();
+        return;
+      }
+
+      modalCompra.close();
+      limparSelecao();
+      await abrirModalPix(resultado, 'pedido', numeros);
+      return;
+    }
+
     const reservar = CONFIG.MOCK_MODE ? reservarNumeroMock : reservarNumero;
     const resultado = await reservar(
       numeroSelecionado,
@@ -284,7 +439,7 @@ formCompra.addEventListener('submit', async (event) => {
     modalCompra.close();
     await abrirModalPix(resultado);
   } catch (error) {
-    console.error('Falha ao reservar número', { error, numero: numeroSelecionado });
+    console.error('Falha ao reservar', { error, numero: numeroSelecionado, ehPedido });
     modalErroEl.textContent = 'Erro de conexão. Verifique sua internet e tente novamente.';
   } finally {
     btnGerarPix.disabled = false;
@@ -297,7 +452,7 @@ btnCancelar.addEventListener('click', () => modalCompra.close());
 // escopo que o app da cliente na Efí não tem habilitado) — mas a cobrança já retorna o
 // "copia e cola" completo, então geramos a imagem do QR Code no próprio navegador a
 // partir dele (biblioteca `qrcode` carregada no index.html).
-async function abrirModalPix(resultado) {
+async function abrirModalPix(resultado, tipo = 'reserva', numerosPedido = null) {
   try {
     pixQrcodeEl.src = await QRCode.toDataURL(resultado.copia_cola, { width: 220, margin: 1 });
   } catch (error) {
@@ -306,23 +461,27 @@ async function abrirModalPix(resultado) {
   pixCopiaColaEl.value = resultado.copia_cola;
   fallbackChavePixEl.textContent = CONFIG.PIX_CHAVE_FALLBACK;
   fallbackWhatsappEl.textContent = CONFIG.WHATSAPP_FALLBACK;
+  const descricaoNumeros =
+    tipo === 'pedido' && numerosPedido
+      ? `os números ${numerosPedido.map(formatarNumero).join(', ')}`
+      : `o número ${formatarNumero(numeroSelecionado)}`;
   fallbackWhatsappEl.href = `https://wa.me/${CONFIG.WHATSAPP_FALLBACK}?text=${encodeURIComponent(
-    `Oi! Fiz o PIX manual pro número ${formatarNumero(numeroSelecionado)}, segue o comprovante.`
+    `Oi! Fiz o PIX manual pra ${descricaoNumeros}, segue o comprovante.`
   )}`;
   pixStatusEl.textContent = 'Aguardando pagamento...';
   pixStatusEl.className = 'status-espera';
   modalPix.showModal();
-  iniciarPollDeStatus(resultado.reserva_id);
+  iniciarPollDeStatus(tipo === 'pedido' ? resultado.pedido_id : resultado.reserva_id, tipo);
 }
 
-function iniciarPollDeStatus(reservaId) {
+function iniciarPollDeStatus(id, tipo = 'reserva') {
   pararPoll();
 
   if (CONFIG.MOCK_MODE) {
-    // setTimeout aqui é intencional — pararPoll() usa clearInterval, que no navegador
-    // cancela tanto ids de setInterval quanto de setTimeout (mesmo contador interno).
+    // Mock mode só simula o fluxo de número único (não há pedido fictício em
+    // mockStore) -- suficiente pra demonstrar a interface sem Supabase/Efí.
     pollTimer = setTimeout(() => {
-      const reserva = mockStore.reservas.get(reservaId);
+      const reserva = mockStore.reservas.get(id);
       if (!reserva) return;
       reserva.status = 'paga';
       mockStore.numeros.set(reserva.numero, 'pago');
@@ -336,29 +495,35 @@ function iniciarPollDeStatus(reservaId) {
 
   pollTimer = setInterval(async () => {
     try {
-      // RPC, não select direto: `reservas` tem RLS sem policy de leitura pública (só
-      // exporia nome/whatsapp/cpf pra chave anon). status_reserva() é SECURITY DEFINER
-      // e devolve só o status (ver supabase/schema.sql).
-      const { data: status, error } = await supabaseClient.rpc('status_reserva', {
-        p_reserva_id: reservaId,
-      });
+      // RPC, não select direto: `reservas`/`pedidos` têm RLS sem policy de leitura
+      // pública (só exporia nome/whatsapp/cpf pra chave anon). status_reserva()/
+      // status_pedido() são SECURITY DEFINER e devolvem só o status (ver schema.sql).
+      const rpc = tipo === 'pedido' ? 'status_pedido' : 'status_reserva';
+      const params = tipo === 'pedido' ? { p_pedido_id: id } : { p_reserva_id: id };
+      const { data: status, error } = await supabaseClient.rpc(rpc, params);
 
       if (error) throw error;
 
       if (status === 'paga') {
-        pixStatusEl.textContent = 'Pagamento confirmado! Seu número está garantido.';
+        pixStatusEl.textContent =
+          tipo === 'pedido'
+            ? 'Pagamento confirmado! Seus números estão garantidos.'
+            : 'Pagamento confirmado! Seu número está garantido.';
         pixStatusEl.className = 'status-sucesso';
         dispararConfete();
         pararPoll();
         await carregarGrid();
       } else if (status === 'expirada' || status === 'cancelada') {
-        pixStatusEl.textContent = 'O tempo para pagamento expirou. Escolha o número novamente.';
+        pixStatusEl.textContent =
+          tipo === 'pedido'
+            ? 'O tempo para pagamento expirou. Escolha os números novamente.'
+            : 'O tempo para pagamento expirou. Escolha o número novamente.';
         pixStatusEl.className = 'status-erro';
         pararPoll();
         await carregarGrid();
       }
     } catch (error) {
-      console.error('Falha ao consultar status da reserva', { error, reservaId });
+      console.error('Falha ao consultar status', { error, id, tipo });
     }
   }, CONFIG.POLL_INTERVALO_MS);
 }
