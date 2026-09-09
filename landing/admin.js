@@ -614,6 +614,96 @@ function mostrarResultadoFinal(sorteados) {
   });
 }
 
+const btnManual = document.getElementById('btn-manual');
+const modalManual = document.getElementById('modal-manual');
+const formManual = document.getElementById('form-manual');
+const manualNomeEl = document.getElementById('manual-nome');
+const manualWhatsappEl = document.getElementById('manual-whatsapp');
+const manualModoRadios = document.querySelectorAll('input[name="manual-modo"]');
+const manualCampoQuantidadeEl = document.getElementById('manual-campo-quantidade');
+const manualQuantidadeEl = document.getElementById('manual-quantidade');
+const manualCampoNumerosEl = document.getElementById('manual-campo-numeros');
+const manualNumerosEl = document.getElementById('manual-numeros');
+const manualValorEl = document.getElementById('manual-valor');
+const btnManualCancelar = document.getElementById('btn-manual-cancelar');
+const btnManualConfirmar = document.getElementById('btn-manual-confirmar');
+const manualErroEl = document.getElementById('manual-erro');
+const manualSucessoEl = document.getElementById('manual-sucesso');
+
+btnManual.addEventListener('click', () => {
+  formManual.reset();
+  manualErroEl.textContent = '';
+  manualSucessoEl.hidden = true;
+  manualCampoQuantidadeEl.hidden = false;
+  manualCampoNumerosEl.hidden = true;
+  modalManual.showModal();
+});
+
+btnManualCancelar.addEventListener('click', () => modalManual.close());
+
+manualModoRadios.forEach((radio) => {
+  radio.addEventListener('change', () => {
+    const especifico = document.querySelector('input[name="manual-modo"]:checked').value === 'especifico';
+    manualCampoQuantidadeEl.hidden = especifico;
+    manualCampoNumerosEl.hidden = !especifico;
+  });
+});
+
+formManual.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  manualErroEl.textContent = '';
+  manualSucessoEl.hidden = true;
+
+  const token = localStorage.getItem(TOKEN_STORAGE_KEY);
+  const nome = manualNomeEl.value.trim();
+  const whatsapp = manualWhatsappEl.value.trim();
+  const modo = document.querySelector('input[name="manual-modo"]:checked').value;
+  const valorReais = parseFloat(manualValorEl.value);
+  const valorCentavos = Number.isFinite(valorReais) ? Math.round(valorReais * 100) : VALOR_NUMERO_CENTAVOS;
+
+  const params = { p_admin_token: token, p_nome: nome, p_whatsapp: whatsapp || null, p_valor_centavos: valorCentavos };
+
+  if (modo === 'especifico') {
+    const numeros = manualNumerosEl.value
+      .split(',')
+      .map((n) => parseInt(apenasDigitos(n), 10))
+      .filter((n) => Number.isInteger(n) && n >= 1 && n <= CONFIG.TOTAL_NUMEROS);
+    if (numeros.length === 0) {
+      manualErroEl.textContent = 'Informe pelo menos um número válido.';
+      return;
+    }
+    params.p_numeros = numeros;
+  } else {
+    const quantidade = parseInt(manualQuantidadeEl.value, 10);
+    if (!Number.isInteger(quantidade) || quantidade < 1) {
+      manualErroEl.textContent = 'Informe uma quantidade válida.';
+      return;
+    }
+    params.p_quantidade = quantidade;
+  }
+
+  btnManualConfirmar.disabled = true;
+  try {
+    const { data, error } = await supabaseClient.rpc('registrar_compra_manual', params);
+    if (error) throw error;
+
+    const numerosRegistrados = (data || []).map((r) => formatarNumero(r.numero)).join(', ');
+    manualSucessoEl.textContent = `Registrado! Números: ${numerosRegistrados}`;
+    manualSucessoEl.hidden = false;
+    await carregarPainel();
+    setTimeout(() => modalManual.close(), 2000);
+  } catch (error) {
+    console.error('Falha ao registrar compra manual', { error });
+    manualErroEl.textContent = error.message?.includes('nao ha numeros disponiveis')
+      ? 'Não há números disponíveis suficientes.'
+      : error.message?.includes('nao estao disponiveis')
+        ? 'Um ou mais números informados já não estão disponíveis.'
+        : 'Erro ao registrar. Confira os dados e tente novamente.';
+  } finally {
+    btnManualConfirmar.disabled = false;
+  }
+});
+
 (async function iniciar() {
   const autenticado = await carregarPainel();
   if (!autenticado) {
