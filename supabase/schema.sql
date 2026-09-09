@@ -371,7 +371,7 @@ create or replace function reservar_pedido(
   p_cpf text,
   p_minutos int default 15
 )
-returns table(pedido_id uuid, sucesso boolean, motivo text, numeros_indisponiveis smallint[])
+returns table(pedido_id uuid, sucesso boolean, motivo text, numeros_indisponiveis smallint[], quantidade smallint, valor_original text)
 language plpgsql
 as $$
 declare
@@ -397,7 +397,7 @@ begin
   end loop;
 
   if array_length(v_indisponiveis, 1) > 0 then
-    return query select null::uuid, false, 'numeros_indisponiveis'::text, v_indisponiveis;
+    return query select null::uuid, false, 'numeros_indisponiveis'::text, v_indisponiveis, null::smallint, null::text;
     return;
   end if;
 
@@ -419,7 +419,13 @@ begin
     update numeros set reserva_id = v_reserva_id where numero = v_numero;
   end loop;
 
-  return query select v_pedido_id, true, 'reservado'::text, null::smallint[];
+  return query select
+    v_pedido_id,
+    true,
+    'reservado'::text,
+    null::smallint[],
+    array_length(p_numeros, 1)::smallint,
+    to_char(array_length(p_numeros, 1) * 1000 / 100.0, 'FM999990.00');
 end;
 $$;
 

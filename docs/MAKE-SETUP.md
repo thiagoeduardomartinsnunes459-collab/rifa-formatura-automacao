@@ -158,16 +158,23 @@ Pré-requisito: rodar a parte nova de `supabase/schema.sql` (tabela `pedidos` +
 funções `reservar_pedido`, `vincular_txid_efi_pedido`, `pedido_id_por_txid`,
 `confirmar_pagamento_pedido`, `status_pedido`).
 
+**Montado e ativo (scenario ID 6205692).** Webhook URL:
+`https://hook.us2.make.com/2bgzeqtv79tx5gzswes8h46jctnvyv8o` (já em `config.js` →
+`MAKE_WEBHOOK_RESERVAR_PEDIDO`).
+
 | # | Módulo | Configuração |
 |---|--------|--------------|
-| 1 | **Webhooks → Custom webhook** | Cria o webhook, copia a URL gerada pra `config.js` → `MAKE_WEBHOOK_RESERVAR_PEDIDO`. Body esperado: `{ numeros: [11, 12], nome, whatsapp, cpf }` |
+| 1 | **Webhooks → Custom webhook** | Body esperado: `{ numeros: [11, 12], nome, whatsapp, cpf }` |
 | 2 | **HTTP → Make a request** | `POST {SUPABASE_URL}/rest/v1/rpc/reservar_pedido`<br>Headers: `apikey: {SERVICE_ROLE_KEY}`, `Authorization: Bearer {SERVICE_ROLE_KEY}`, `Content-Type: application/json`<br>Body: `{"p_numeros": {{1.numeros}}, "p_nome": "{{1.nome}}", "p_whatsapp": "{{1.whatsapp}}", "p_cpf": "{{1.cpf}}", "p_minutos": 15}` |
-| 3 | **Router** | Ramo A: `{{2.sucesso}} = false` → passo 8. Ramo B: `{{2.sucesso}} = true` → passo 4. |
-| 4 | **HTTP → Make a request** (Ramo B) | `POST {EFI_PROXY_URL}/api/efi/oauth/token` (mesmo proxy mTLS já usado no Scenario 1 PRODUCAO — não precisa de certificado configurado no Make, o proxy segura o cert) |
-| 5 | **HTTP → Make a request** (Ramo B) | `POST {EFI_PROXY_URL}/api/efi/v2/cob`<br>Body: `{"calendario": {"expiracao": 900}, "devedor": {"cpf": "{{1.cpf}}", "nome": "{{1.nome}}"}, "valor": {"original": "{{formatNumber(length(1.numeros) * 10; 2; "."; "")}}"}, "chave": "{EFI_CHAVE_PIX}", "solicitacaoPagador": "Rifa Formatura - {{length(1.numeros)}} números"}` |
-| 6 | **HTTP → Make a request** (Ramo B) | `POST {SUPABASE_URL}/rest/v1/rpc/vincular_txid_efi_pedido`<br>Body: `{"p_pedido_id": "{{2.pedido_id}}", "p_txid": "{{5.txid}}"}` |
-| 7 | **Webhooks → Webhook response** (Ramo B) | Status 200. Body: `{"sucesso": true, "pedido_id": "{{2.pedido_id}}", "copia_cola": "{{5.pixCopiaECola}}"}` |
-| 8 | **Webhooks → Webhook response** (Ramo A) | Status 200. Body: `{"sucesso": false, "motivo": "{{2.motivo}}", "numeros_indisponiveis": {{2.numeros_indisponiveis}}}` |
+| 3 | **Router** | Ramo "Reserva OK": `{{2.sucesso}} = true` → passo 4. Ramo "Falhou": `{{2.sucesso}} = false` → passo 5. |
+| 4 | **HTTP → Make a request** (Ramo OK) | `POST {EFI_PROXY_URL}/api/efi/oauth/token`, auth Basic (credencial salva "Efi Producao", a mesma reusada do Scenario 1) |
+| 6 | **HTTP → Make a request** (Ramo OK) | `POST {EFI_PROXY_URL}/api/efi/v2/cob`<br>Headers: `Authorization: Bearer {{4.data.access_token}}`, `Content-Type: application/json`<br>Body: `{"calendario": {"expiracao": 900}, "devedor": {"cpf": "{{1.cpf}}", "nome": "{{1.nome}}"}, "valor": {"original": "{{2.valor_original}}"}, "chave": "{EFI_CHAVE_PIX}", "solicitacaoPagador": "Rifa Formatura - {{2.quantidade}} numeros"}`<br>**Nota:** `valor_original` (ex: `"30.00"`) e `quantidade` vêm prontos do retorno de `reservar_pedido` — evita montar `formatNumber(length(...) * 10; ...)` inline no Make, que o parser de pills do editor corrompe em expressões com função aninhada. |
+| 7 | **HTTP → Make a request** (Ramo OK) | `POST {SUPABASE_URL}/rest/v1/rpc/vincular_txid_efi_pedido`<br>Body: `{"p_pedido_id": "{{2.pedido_id}}", "p_txid": "{{6.txid}}"}` |
+| 8 | **Webhooks → Webhook response** (Ramo OK) | Status 200. Body: `{"sucesso": true, "pedido_id": "{{2.pedido_id}}", "copia_cola": "{{6.pixCopiaECola}}"}` |
+| 5 | **Webhooks → Webhook response** (Ramo Falhou) | Status 200. Body: `{"sucesso": false, "motivo": "{{2.motivo}}", "numeros_indisponiveis": {{2.numeros_indisponiveis}}}` |
+
+(Numeração dos módulos reflete a ordem real de criação no Make, não a ordem lógica —
+o Router ficou como módulo 3, o ramo "Falhou" foi montado antes do ramo "OK".)
 
 **Confirmação de pagamento de pedidos:** não criamos um Scenario 5 separado pra
 isso. `efi-proxy/api/reconcile.js` (rede de segurança já existente, rodando via

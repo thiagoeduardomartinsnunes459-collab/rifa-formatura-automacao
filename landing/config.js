@@ -10,10 +10,10 @@ const CONFIG = {
   SUPABASE_URL: 'https://zlmghzvgbwuhopdpgkta.supabase.co',
   SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpsbWdoenZnYnd1aG9wZHBna3RhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgzMTIzNjQsImV4cCI6MjEwMzg4ODM2NH0.7ymbr3hNJz4xsa3DpDDDIOJONZdzWsS2mvhrnL_jSxI',
   MAKE_WEBHOOK_RESERVAR: 'https://hook.us2.make.com/71f9xx5l66bsfdz0h6iadd1i2mz0fj7c',
-  // Webhook do scenario novo "Rifa - Reservar Pedido + Gerar PIX (PRODUCAO)" --
-  // usado só quando a pessoa escolhe 2+ números no modo de seleção múltipla.
-  // Preencher com a URL real depois de montar o scenario no Make.
-  MAKE_WEBHOOK_RESERVAR_PEDIDO: '',
+  // Webhook do scenario "Rifa - Reservar Pedido + Gerar PIX (PRODUCAO)" (ID
+  // 6205692) -- usado só quando a pessoa escolhe 2+ números no modo de seleção
+  // múltipla.
+  MAKE_WEBHOOK_RESERVAR_PEDIDO: 'https://hook.us2.make.com/2bgzeqtv79tx5gzswes8h46jctnvyv8o',
   TOTAL_NUMEROS: 1000,
   POLL_INTERVALO_MS: 4000,
   // Só pra exibir o total estimado na tela antes de gerar o PIX -- quem calcula
