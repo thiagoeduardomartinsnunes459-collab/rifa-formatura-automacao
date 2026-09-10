@@ -100,8 +100,14 @@ export default async function handler(req, res) {
   const pendentes = await supabaseRest(
     '/reservas?status=eq.pendente&efi_txid=not.is.null&select=id,numero,efi_txid'
   );
+  const pedidosPendentes = await supabaseRest(
+    '/pedidos?status=eq.pendente&efi_txid=not.is.null&select=id,efi_txid'
+  );
 
-  if (!Array.isArray(pendentes) || pendentes.length === 0) {
+  const temReservas = Array.isArray(pendentes) && pendentes.length > 0;
+  const temPedidos = Array.isArray(pedidosPendentes) && pedidosPendentes.length > 0;
+
+  if (!temReservas && !temPedidos) {
     res.status(200).json({ verificadas: 0, confirmadas: 0 });
     return;
   }
@@ -110,7 +116,7 @@ export default async function handler(req, res) {
   let confirmadas = 0;
   const detalhes = [];
 
-  for (const reserva of pendentes) {
+  for (const reserva of temReservas ? pendentes : []) {
     const cob = await efiRequest(`/v2/cob/${reserva.efi_txid}`, 'GET', token);
 
     if (cob.status !== 200 || cob.data?.status !== 'CONCLUIDA') {
@@ -147,5 +153,50 @@ export default async function handler(req, res) {
     }
   }
 
-  res.status(200).json({ verificadas: pendentes.length, confirmadas, detalhes });
+  // Mesma logica acima, mas pra pedidos (varios numeros sob uma unica cobranca) --
+  // ver reservar_pedido/confirmar_pagamento_pedido em supabase/schema.sql.
+  for (const pedido of temPedidos ? pedidosPendentes : []) {
+    const cob = await efiRequest(`/v2/cob/${pedido.efi_txid}`, 'GET', token);
+
+    if (cob.status !== 200 || cob.data?.status !== 'CONCLUIDA') {
+      detalhes.push({ pedido_id: pedido.id, status: cob.data?.status || 'erro' });
+      continue;
+    }
+
+    const pixInfo = cob.data.pix?.[0];
+    const gatewayTxid = pixInfo?.endToEndId || `auto-${pedido.efi_txid}`;
+
+    const confirmacao = await supabaseRest('/rpc/confirmar_pagamento_pedido', {
+      method: 'POST',
+      body: JSON.stringify({
+        p_gateway_txid: gatewayTxid,
+        p_pedido_id: pedido.id,
+        p_payload: cob.data,
+      }),
+    });
+
+    const resultado = Array.isArray(confirmacao) ? confirmacao[0] : null;
+    const sucesso = resultado?.sucesso;
+    const numerosConfirmados = resultado?.numeros || [];
+    detalhes.push({ pedido_id: pedido.id, status: 'CONCLUIDA', confirmado: !!sucesso, numeros: numerosConfirmados });
+
+    if (sucesso) {
+      confirmadas += 1;
+      try {
+        await fetch(`https://${req.headers.host}/api/push/notify`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ numeros: numerosConfirmados }),
+        });
+      } catch {
+        // notificacao push nao é crítica -- nao bloqueia a reconciliacao
+      }
+    }
+  }
+
+  res.status(200).json({
+    verificadas: (temReservas ? pendentes.length : 0) + (temPedidos ? pedidosPendentes.length : 0),
+    confirmadas,
+    detalhes,
+  });
 }

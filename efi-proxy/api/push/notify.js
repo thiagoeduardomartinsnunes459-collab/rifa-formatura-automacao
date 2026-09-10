@@ -44,17 +44,20 @@ export default async function handler(req, res) {
     return;
   }
 
-  const { numero } = req.body || {};
-  if (!numero) {
-    res.status(400).json({ erro: 'Campo "numero" obrigatorio no body.' });
+  const { numero, numeros } = req.body || {};
+  const listaNumeros = Array.isArray(numeros) && numeros.length > 0 ? numeros : numero ? [numero] : [];
+  if (listaNumeros.length === 0) {
+    res.status(400).json({ erro: 'Campo "numero" ou "numeros" obrigatorio no body.' });
     return;
   }
 
-  // Nome do comprador (venda mais recente confirmada pra esse numero).
+  // Nome do comprador (venda mais recente confirmada pra algum desses numeros --
+  // num pedido, todos os numeros pertencem ao mesmo comprador).
   let nome = 'alguém';
   try {
+    const filtroNumeros = listaNumeros.length === 1 ? `eq.${listaNumeros[0]}` : `in.(${listaNumeros.join(',')})`;
     const compradorRes = await supabaseRest(
-      `/reservas?numero=eq.${numero}&status=eq.paga&select=nome&order=paga_em.desc&limit=1`
+      `/reservas?numero=${filtroNumeros}&status=eq.paga&select=nome&order=paga_em.desc&limit=1`
     );
     const compradorData = await compradorRes.json();
     if (Array.isArray(compradorData) && compradorData[0]?.nome) {
@@ -72,10 +75,15 @@ export default async function handler(req, res) {
     return;
   }
 
-  const numeroFormatado = String(numero).padStart(4, '0');
+  const numerosFormatados = listaNumeros.map((n) => String(n).padStart(4, '0'));
+  const plural = numerosFormatados.length > 1;
+  const listaTexto =
+    numerosFormatados.length <= 2
+      ? numerosFormatados.join(' e ')
+      : `${numerosFormatados.slice(0, -1).join(', ')} e ${numerosFormatados[numerosFormatados.length - 1]}`;
   const payload = JSON.stringify({
-    title: '🎟️ Número vendido!',
-    body: `Número ${numeroFormatado} vendido pra ${nome}.`,
+    title: plural ? '🎟️ Números vendidos!' : '🎟️ Número vendido!',
+    body: `Número${plural ? 's' : ''} ${listaTexto} vendido${plural ? 's' : ''} pra ${nome}.`,
     url: '/admin.html',
   });
 
