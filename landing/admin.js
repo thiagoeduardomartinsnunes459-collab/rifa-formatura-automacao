@@ -84,9 +84,13 @@ async function buscarReservas(token) {
 function agruparPorComprador(reservas) {
   const grupos = new Map();
   for (const r of reservas) {
-    const chave = r.whatsapp || r.nome;
+    // Agrupa por nome + WhatsApp (não só WhatsApp): o mesmo telefone pode ter
+    // comprado em nomes diferentes em ocasiões distintas (ex: familiares
+    // dividindo o número), e cada nome deve aparecer como card separado —
+    // nunca misturar números de pessoas diferentes num card só.
+    const chave = `${r.nome}|${r.whatsapp || ''}`;
     if (!grupos.has(chave)) {
-      grupos.set(chave, { whatsapp: r.whatsapp, numeros: [] });
+      grupos.set(chave, { nome: r.nome, whatsapp: r.whatsapp, numeros: [] });
     }
     grupos.get(chave).numeros.push(r);
   }
@@ -95,16 +99,6 @@ function agruparPorComprador(reservas) {
   for (const g of lista) {
     g.numeros.sort((a, b) => a.numero - b.numero);
     g.ultimaCompra = g.numeros.reduce((max, n) => (n.criada_em > max ? n.criada_em : max), g.numeros[0].criada_em);
-    // Mesmo WhatsApp pode ter comprado sob nomes diferentes em ocasiões distintas
-    // (ex: familiares dividindo o número, ou o nome digitado mudou entre compras).
-    // Mostra todos os nomes usados, na ordem em que apareceram, em vez de escolher
-    // um só e esconder os outros.
-    const porData = [...g.numeros].sort((a, b) => (a.criada_em < b.criada_em ? -1 : 1));
-    const nomesVistos = [];
-    for (const r of porData) {
-      if (!nomesVistos.includes(r.nome)) nomesVistos.push(r.nome);
-    }
-    g.nome = nomesVistos.join(' / ');
   }
   lista.sort((a, b) => (a.ultimaCompra < b.ultimaCompra ? 1 : -1));
   return lista;
